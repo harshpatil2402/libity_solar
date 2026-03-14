@@ -134,7 +134,7 @@
     <h4 class="fw-bold mb-0">Generate Document Set</h4>
     <p style="color:var(--text-muted);font-size:0.78rem;margin:3px 0 0;">Fill all sections and click Generate ZIP to produce your documents</p>
   </div>
-  <a href="{{ url_for('agency_dashboard') }}" class="btn btn-outline-secondary btn-sm px-3">
+  <a href="{{ au('agency_dashboard') }}" class="btn btn-outline-secondary btn-sm px-3">
     <i class="ph ph-arrow-left me-1"></i> Back
   </a>
 </div>
@@ -149,7 +149,7 @@
       <strong>Upload fresh signature and Aadhar images</strong> — they are never saved.
     </div>
   </div>
-  <a href="{{ url_for('generate') }}" class="btn btn-sm btn-outline-secondary" style="flex-shrink:0;font-size:0.76rem;">
+  <a href="{{ au('generate') }}" class="btn btn-sm btn-outline-secondary" style="flex-shrink:0;font-size:0.76rem;">
     <i class="ph ph-x me-1"></i> Clear
   </a>
 </div>
@@ -345,8 +345,8 @@
     <!-- S6: Generate -->
     <div class="fsec" id="s6">
       <div class="fsec-head">
-        <div class="fsec-ico" style="background:var(--accent-pale);color:var(--accent);"><i class="ph ph-file-zip"></i></div>
-        <div><p class="fsec-title">Generate &amp; Download</p><p class="fsec-sub">Choose format and generate your document package</p></div>
+        <div class="fsec-ico" style="background:var(--accent-pale);color:var(--accent);"><i class="ph ph-file-pdf"></i></div>
+        <div><p class="fsec-title">Generate &amp; Download</p><p class="fsec-sub">Generates 5 PDF documents in a single ZIP — ready to submit</p></div>
       </div>
 
       <div class="doc-chips mb-4">
@@ -356,17 +356,15 @@
       </div>
 
       <div class="submit-bar">
-        <div style="flex:1;min-width:200px;">
-          <label class="form-label mb-1">Output Format</label>
-          <select name="format" class="form-select">
-            <option value="both" selected>DOCX + PDF (Recommended)</option>
-            <option value="pdf">PDF Only</option>
-            <option value="docx">DOCX Only</option>
-          </select>
+        <div style="flex:1;">
+          <div style="font-size:0.82rem;color:var(--text-muted);display:flex;align-items:center;gap:6px;">
+            <i class="ph ph-file-pdf" style="color:var(--accent-2);font-size:16px;"></i>
+            Output: <strong style="color:var(--text);">PDF only</strong> &nbsp;·&nbsp; All 5 documents in one ZIP
+          </div>
         </div>
         <div>
           <button type="submit" id="genBtn" class="btn btn-primary" style="font-size:0.9rem;padding:9px 28px;">
-            <i class="ph ph-file-arrow-up me-1"></i> Generate ZIP
+            <i class="ph ph-file-arrow-up me-1"></i> Generate PDFs
           </button>
         </div>
       </div>
@@ -467,7 +465,7 @@ document.addEventListener('DOMContentLoaded', function(){
   nmI.addEventListener('input', calc);
 
   // ── Cropper — aspect ratio locked per image type ──
-  // Ratios match docxtpl InlineImage dimensions:
+  // Ratios match document image dimensions:
   //   sig    4.5×1.5 cm  → 3.000
   //   aadhar 11×7 cm     → 1.571
   //   stamp  6.5×2.5 cm  → 2.600   (used in admin_agency_form)
@@ -525,9 +523,9 @@ document.addEventListener('DOMContentLoaded', function(){
   function aLog(msg, err){
     const l = document.createElement('span');
     let cls = 'inf';
-    if(err)                                                      cls = 'err';
-    else if(/DOCX done|ZIP ready|PDF:|done/i.test(msg))          cls = 'ok';
-    else if(/timeout|warn|missing/i.test(msg))                   cls = 'wrn';
+    if(err)                                                    cls = 'err';
+    else if(/Done:|ZIP ready|ready|Generating/i.test(msg))     cls = 'ok';
+    else if(/timeout|warn|missing/i.test(msg))                 cls = 'wrn';
     l.className = 'll ' + cls;
     l.textContent = '> ' + msg;
     logBody.appendChild(l);

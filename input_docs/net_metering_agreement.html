@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Net Metering Connection Agreement</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #000; background: #fff; }
+
+  @media screen {
+    body { background: #e0e0e0; padding: 20px; }
+    .page { width: 216mm; min-height: 279mm; background: #fff; margin: 0 auto 30px auto; padding: 14mm 20mm 12mm 20mm; box-shadow: 0 4px 16px rgba(0,0,0,0.18); }
+  }
+  @media print {
+    body { background: #fff; }
+    .page { width: 216mm; min-height: 279mm; padding: 14mm 20mm 12mm 20mm; }
+  }
+  @page { size: Letter portrait; margin: 0; }
+
+  .ph { font-weight: bold; }
+
+  .doc-title { font-size: 13pt; font-weight: bold; text-align: center; text-decoration: underline; margin-bottom: 3px; }
+  .doc-subtitle { font-size: 10.5pt; text-align: center; margin-bottom: 10px; font-style: italic; }
+
+  p, li { font-size: 10.5pt; line-height: 1.6; margin-bottom: 5px; text-align: justify; }
+
+  .section-heading { font-weight: bold; font-size: 11pt; margin: 6px 0 2px 0; text-decoration: underline; page-break-after: avoid; }
+  .clause-block { page-break-inside: avoid; break-inside: avoid; margin-bottom: 4px; }
+  .clause-num { font-weight: bold; }
+
+  ol.clause-list { padding-left: 22px; margin-bottom: 6px; }
+  ol.clause-list li { font-size: 10.5pt; line-height: 1.6; margin-bottom: 4px; text-align: justify; }
+  ul.clause-list { padding-left: 22px; margin-bottom: 6px; }
+  ul.clause-list li { font-size: 10.5pt; line-height: 1.6; margin-bottom: 4px; text-align: justify; }
+
+  /* Page break before witness+signature block */
+  .sig-witness-page { page-break-before: always; padding-top: 14mm; }
+
+  .party-sig-row { display: flex; justify-content: space-between; margin-bottom: 16px; }
+  .party-sig { width: 45%; text-align: center; }
+  .party-name { font-weight: bold; font-size: 11pt; margin-bottom: 6px; }
+  .sig-line { border-top: 1px solid #000; margin: 50px 0 4px 0; }
+  .sig-label { font-size: 10pt; text-align: center; }
+
+  .witness-heading { font-weight: bold; font-size: 12pt; text-decoration: underline; margin: 24px 0 16px 0; }
+  .witness-row { display: flex; justify-content: space-between; margin-bottom: 16px; gap: 20px; }
+  .witness-block { flex: 1; border: 1px solid #000; padding: 10px; }
+  .witness-label { font-weight: bold; font-size: 10.5pt; margin-bottom: 6px; border-bottom: 1px solid #000; padding-bottom: 4px; }
+  .witness-fields p { font-size: 10pt; margin-bottom: 0; line-height: 2.4; border-bottom: 1px dotted #aaa; padding-bottom: 1px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- 11cm blank space for Indian Stamp Paper impression (Rs. 200/-) -->
+  <div style="height: 110mm;"></div>
+
+  <div class="doc-title">ANNEXURE-3</div>
+  <div class="doc-title" style="font-size:12pt;">Net Metering Connection Agreement</div>
+  <div class="doc-subtitle">(On Rs. 200/- Stamp paper)</div>
+
+  <p>
+    This agreement is made and entered into at <strong class="ph">{{city}}</strong> on this (Date <strong class="ph">{{annexure_agreement_date}}</strong>),
+    between the eligible consumers, Shri <strong class="ph">{{consumer_name}}</strong> having premises at
+    <strong class="ph">{{consumer_address}}</strong> Having Consumer no. <strong class="ph">{{consumer_number}}</strong>
+    as the first party,
+  </p>
+  <p style="text-align:center; font-weight:bold;">AND</p>
+  <p>
+    The Distribution Licensee <strong class="ph">{{licensee_name}}</strong>, hereinafter referred to as 'The Licensee' and
+    having its registered Office at <strong class="ph">{{city}}</strong>, as second party of this agreement;
+  </p>
+  <p>
+    Whereas, The eligible consumer has applied to the licensee for approval of a Net Metering arrangement
+    under the provision of the Maharashtra Electricity Regulatory Commission (Net Metering for Roof-Top Solar
+    Photo Voltaic Systems) Regulations 2015 (the net metering Regulations) and sought its connectivity to the
+    Licensee's Distribution Network; And whereas, The Licensee has agreed to provide Network connectivity to
+    the eligible consumer for injection of electricity generated from its Roof-Top Solar PV System of
+    <strong class="ph">{{system_capacity_kw}}</strong> KW.
+  </p>
+
+  <p style="text-align:center; font-weight:bold;">Both parties hereby agree as follows:-</p>
+
+  <div class="clause-block">
+    <p class="section-heading">1. Eligibility:</p>
+    <p>The Roof-Top Solar PV System meets the applicable norms for being integrated into the distribution network, and that the eligible consumer shall maintain the System accordingly for the duration of this <strong class="ph">{{system_capacity_kw}}</strong> KW agreement.</p>
+  </div>
+
+  <div class="clause-block">
+    <p class="section-heading">2. Technical and interconnection Requirements:</p>
+    <p>The metering agreement and the inter-connection of Roof-Top Solar PV System with the network of the Licensee shall be as per provisions of the Net Metering Regulations and the technical standards and norms specified by the Central Electricity Authority for connectivity of distributed generation resources and for the installation and operation of meters.</p>
+    <ol class="clause-list">
+      <li>The Eligible Consumer agrees, that he shall install, Prior to connection of the Roof-Top Solar PV system to the Network of the Licensee, an Isolation device (both automatic and in built within inverter and external manual relays); and the Licensee shall have access to it if required for repair and maintenance of the distribution Network.</li>
+      <li>The Licensee shall specify the interface / inter-connection point and metering point.</li>
+      <li>The Eligible Consumer shall furnish all relevant data, such as Voltage, Frequency, Circuit breaker, Isolator position in his system, as and when required by the licensee.</li>
+    </ol>
+  </div>
+
+  <div class="clause-block">
+    <p class="section-heading">3. Safety:</p>
+    <p><span class="clause-num">3.1</span> The equipment connected to the Licensee's Distribution System shall be compliant with relevant International (IEEE/IEC) or Indian Standards (BIS), as the case may be, and the installation of electrical equipment shall comply with the requirements specified by the Central Electricity Authority regarding safety and electricity supply.</p>
+    <p><span class="clause-num">3.2</span> The design installation, maintenance and operation of Roof-top Solar PV System shall be undertaken in a manner conducive to the safety of the Roof-top Solar PV System as well as the Licensee's Network.</p>
+    <p><span class="clause-num">3.3</span> IF, at any time Licensee determines that the Eligible Consumer's Roof-top Solar PV System is causing or may cause damage, the Eligible Consumer shall disconnect the Roof-top Solar PV System from the distribution Network upon direction from the Licensee, and shall undertake corrective measures at his own expense prior to re-connection.</p>
+    <p><span class="clause-num">3.4</span> The Licensee shall not be responsible for any accident resulting in injury to human beings or animals or damage to property that may occur due to back-feeding from the Roof-top Solar PV System when the grid supply is off.</p>
+  </div>
+
+  <div class="clause-block">
+    <p class="section-heading">4. Other Clearances and Approvals.</p>
+    <p>The Eligible Consumer shall obtain any statutory approvals and clearances that may be required such as from the Electrical Inspector or the municipal or other authorities, before connecting the Roof-top Solar PV System to the distribution Network.</p>
+  </div>
+
+  <div class="clause-block">
+    <p class="section-heading">5. Period of Agreement, and Termination.</p>
+    <p>This Agreement shall be for a period 20 years, but may be terminated prematurely</p>
+    <ol class="clause-list" type="a">
+      <li>By mutual consent; or</li>
+      <li>By the Eligible Consumer, by giving 30 days' notice to the Licensee;</li>
+      <li>By the Licensee, by giving 30 days' notice, if the Eligible Consumer breaches any terms of this Agreement or the provisions of the Net Metering Regulations and does not remedy such breach within 30 days, or such other reasonable period as may be provided, of receiving notice of such breach, or for any other valid reason communicated by the Licensee in writing.</li>
+    </ol>
+  </div>
+
+  <div class="clause-block">
+    <p class="section-heading">6. Access and Disconnection</p>
+    <p><span class="clause-num">6.1</span> The Eligible Consumer shall provide to the Licensee access to the disconnecting devices of Roof-top Solar PV System, both automatic and manual.</p>
+    <p><span class="clause-num">6.2</span> If, in an emergent or outage situation the Licensee cannot access the disconnecting devices of the Roof-top Solar PV System, both automatic and manual, it may disconnect power supply to the premises.</p>
+    <p><span class="clause-num">6.3</span> Upon termination of this Agreement under Clause 5, the Eligible Consumer shall disconnect the Roof-top PV System forthwith from the Network of the Licensee.</p>
+  </div>
+
+  <div class="clause-block">
+    <p class="section-heading">7. Liabilities:</p>
+    <p><span class="clause-num">7.1.</span> The parties shall indemnify each other for damages or adverse effects of either party's negligence with the distribution Network and operation of the System.</p>
+    <p><span class="clause-num">7.2.</span> The parties shall not be liable to each other for any loss of profits or revenues, business interruption losses, loss of contract or goodwill, or for indirect, consequential, incidental or special damages including, but not limited to, punitive or exemplary damages, whether any of these liabilities, losses or damages arise in contract or otherwise.</p>
+  </div>
+
+  <div class="clause-block">
+    <p class="section-heading">8. Commercial Settlement:</p>
+    <p><span class="clause-num">8.1</span> The commercial settlements under this Agreement shall be in accordance with the Net Metering Regulations.</p>
+    <p><span class="clause-num">8.2</span> The licensee shall not be liable to compensate the Eligible consumer if his Roof-top Solar PV System is unable to inject surplus power generated into the Licensee's Network on account of failure of power supply in the grid/Network.</p>
+    <p><span class="clause-num">8.3</span> The existing metering System, if not in accordance with the Net Metering Regulation, shall be replaced by a bi-directional meter (whole current/CT operated) or a pair of meters, and a separate generation meter may be provided to measure Solar power generation. The bi-directional meter shall be installed at the inter-connection point to the Licensee's Network for recording export and import of energy.</p>
+    <p><span class="clause-num">8.4</span> The unidirectional and bi-directional or pair of meter shall be fixed in separate meter boxes in the same proximity.</p>
+    <p><span class="clause-num">8.5</span> The Licensee shall issue monthly electricity bill for the net meters energy on the scheduled date of meter reading. If the exported energy exceeds the imported energy, the Eligible consumer shall pay the Distribution Licensee for the net energy imported at the prevailing tariff.</p>
+  </div>
+
+  <div class="clause-block">
+    <p class="section-heading">9. Connection costs:</p>
+    <p>The Eligible consumer shall bear costs related to the setting up of the Roof-top Solar PV System, excluding the Net Metering Arrangement costs.</p>
+  </div>
+
+  <div class="clause-block">
+    <p class="section-heading">10. Dispute Resolution</p>
+    <p><span class="clause-num">10.1</span> Any dispute arising under this Agreement shall be resolved promptly, in good faith and in an equitable manner by both the parties.</p>
+    <p><span class="clause-num">10.2</span> The Eligible consumer shall have recourse to the concerned consumer grievance Redressal Forum constituted under the relevant Regulation for billing which has not been redressed by the Licensee.</p>
+  </div>
+
+  <!-- ── Page break → Signature + Witness Block ── -->
+  <div class="sig-witness-page">
+    <p style="margin-bottom:16px;">
+      IN The witness where of Shri <strong class="ph">{{consumer_name}}</strong> for and on behalf of Eligible consumer and
+      Shri _________________ For and on behalf of M S E D C L agree to agreement.
+    </p>
+
+    <div class="party-sig-row">
+      <div class="party-sig">
+        <div class="party-name">Shri. <strong class="ph">{{consumer_name}}</strong></div>
+        <div class="sig-line"></div>
+        <div class="sig-label">(For and on behalf of Eligible Consumer)</div>
+      </div>
+      <div class="party-sig">
+        <div class="party-name">Shri. ___________________</div>
+        <div class="sig-line"></div>
+        <div class="sig-label">(For and on behalf of MSEDCL)</div>
+      </div>
+    </div>
+
+    <div class="witness-heading">Witnesses</div>
+    <div class="witness-row">
+      <div class="witness-block">
+        <div class="witness-label">Witness 1 — Consumer side</div>
+        <div class="witness-fields">
+          <p>Name:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>
+          <p>Address:&nbsp;&nbsp;&nbsp;</p>
+          <p>Signature:&nbsp;</p>
+        </div>
+      </div>
+      <div class="witness-block">
+        <div class="witness-label">Witness 1 — MSEDCL side</div>
+        <div class="witness-fields">
+          <p>Name:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>
+          <p>Address:&nbsp;&nbsp;&nbsp;</p>
+          <p>Signature:&nbsp;</p>
+        </div>
+      </div>
+    </div>
+    <div class="witness-row">
+      <div class="witness-block">
+        <div class="witness-label">Witness 2 — Consumer side</div>
+        <div class="witness-fields">
+          <p>Name:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>
+          <p>Address:&nbsp;&nbsp;&nbsp;</p>
+          <p>Signature:&nbsp;</p>
+        </div>
+      </div>
+      <div class="witness-block">
+        <div class="witness-label">Witness 2 — MSEDCL side</div>
+        <div class="witness-fields">
+          <p>Name:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>
+          <p>Address:&nbsp;&nbsp;&nbsp;</p>
+          <p>Signature:&nbsp;</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

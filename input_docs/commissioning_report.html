@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Commissioning Report - MSEDCL</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Times New Roman', Times, serif; font-size: 11pt; color: #000; background: #fff; }
+
+  @media screen {
+    body { background: #e0e0e0; padding: 20px; }
+    .page { width: 210mm; height: 297mm; background: #fff; margin: 0 auto 30px auto; padding: 10mm 14mm 8mm 14mm; box-shadow: 0 4px 16px rgba(0,0,0,0.18); overflow: hidden; }
+  }
+  @media print {
+    body { background: #fff; }
+    .page { width: 210mm; height: 297mm; padding: 10mm 14mm 8mm 14mm; page-break-after: always; overflow: hidden; }
+    .page:last-child { page-break-after: auto; }
+  }
+  @page { size: A4 portrait; margin: 0; }
+
+  /* Header: 35% logo | 65% text */
+  .page-header {
+    display: flex;
+    align-items: stretch;
+    border: 1.5px solid #000;
+    margin-bottom: 8px;
+    height: 26mm;
+    overflow: hidden;
+  }
+  .header-logo {
+    width: 35%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-right: 1px solid #bbb;
+    padding: 4px 8px;
+  }
+  .header-logo img { max-width: 100%; max-height: 22mm; object-fit: contain; display: block; }
+  .header-text {
+    flex: 1;
+    padding: 6px 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .header-text h3 { font-size: 13.5pt; font-weight: bold; color: #000; margin: 0 0 4px 0; line-height: 1.2; }
+  .header-text .regen-text { font-size: 11pt; font-weight: bold; color: #444; }
+
+  .annexure-title { text-align: center; font-weight: bold; font-size: 11pt; margin: 5px 0 1px; }
+  .annexure-sub   { text-align: center; font-size: 11pt; font-weight: bold; margin-bottom: 5px; }
+
+  table.main-table { width: 100%; border-collapse: collapse; font-size: 9.5pt; margin-bottom: 5px; }
+  table.main-table td, table.main-table th { border: 1px solid #000; padding: 2px 5px; vertical-align: top; }
+  table.main-table th { background: #d9d9d9; font-weight: bold; text-align: center; }
+  .sr-col { width: 8%; text-align: center; }
+
+  .uploads-label { font-size: 10pt; font-weight: bold; margin: 4px 0 2px 0; }
+  .uploads-list { list-style: decimal; padding-left: 20px; margin-bottom: 3px; }
+  .uploads-list li { font-size: 8.5pt; margin-bottom: 1px; line-height: 1.4; }
+
+  .date-sig-row { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 6px; }
+  .date-block { font-size: 10pt; font-weight: bold; }
+
+  .ph { font-weight: bold; }
+
+  .img-sig-inline { display: inline-block; width: 50mm; height: 20mm; border: 1px dashed #999; vertical-align: bottom; }
+  .img-sig        { display: block;        width: 50mm; height: 20mm; border: 1px dashed #999; }
+  .img-sign       { display: inline-block; width: 50mm; height: 20mm; border: 1px dashed #999; vertical-align: bottom; }
+  .sig-label { font-size: 9pt; font-weight: bold; margin-top: 3px; }
+
+  .proforma-title { font-size: 12pt; font-weight: bold; text-align: center; margin: 6px 0 3px; }
+  .proforma-sub   { font-size: 9.5pt; font-weight: bold; text-align: center; margin-bottom: 10px; }
+  .proforma-body  { font-size: 11pt; line-height: 1.6; text-align: justify; margin-bottom: 8px; }
+
+  .sig-area { margin-top: 20px; }
+  .sig-row-left  { margin-bottom: 22px; }
+  .sig-row-right { margin-bottom: 22px; }
+  .sig-row-msedcl { margin-top: 20px; }
+</style>
+</head>
+<body>
+
+<!-- PAGE 1: Annexure-I -->
+<div class="page">
+  <div class="page-header">
+    <div class="header-logo">
+      <img src="static/images/mahavitaran.png" alt="Mahavitaran Logo">
+    </div>
+    <div class="header-text">
+      <h3>Maharashtra State Electricity Distribution Co. Ltd.</h3>
+      <div class="regen-text">Renewable Energy Generating System</div>
+    </div>
+  </div>
+
+  <div class="annexure-title">Annexure-I</div>
+  <div class="annexure-sub">(Commissioning Report for RE System)</div>
+
+  <table class="main-table">
+    <thead>
+      <tr>
+        <th class="sr-col">S No.</th>
+        <th>Particulars</th>
+        <th>As commissioned</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td class="sr-col">1</td><td>Name of the Consumer</td><td><strong class="ph">{{consumer_name}}</strong></td></tr>
+      <tr><td class="sr-col">2</td><td>Consumer Number</td><td><strong class="ph">{{consumer_number}}</strong></td></tr>
+      <tr><td class="sr-col">3</td><td>Mobile Number</td><td><strong class="ph">{{consumer_contact_number}}</strong></td></tr>
+      <tr><td class="sr-col">4</td><td>E-mail</td><td><strong class="ph">{{consumer_email}}</strong></td></tr>
+      <tr><td class="sr-col">5</td><td>Address of Installation</td><td><strong class="ph">{{consumer_address}}</strong></td></tr>
+      <tr><td class="sr-col">6</td><td>RE Arrangement Type</td><td>Net Metering Arrangement</td></tr>
+      <tr><td class="sr-col">7</td><td>RE Source</td><td>Solar</td></tr>
+      <tr><td class="sr-col">8</td><td>Sanctioned Capacity (KW)</td><td><strong class="ph">{{sanction_capacity_kw}}</strong> KW</td></tr>
+      <tr><td class="sr-col">9</td><td>Capacity Type</td><td>Rooftop</td></tr>
+      <tr><td class="sr-col">10</td><td>Project Model</td><td>Capex</td></tr>
+      <tr><td class="sr-col">11</td><td>RE installed Capacity (Rooftop)(KW)</td><td><strong class="ph">{{system_capacity_kw}}</strong> KW</td></tr>
+      <tr><td class="sr-col">12</td><td>RE installed Capacity (Rooftop + Ground) (KW)</td><td>NA</td></tr>
+      <tr><td class="sr-col">13</td><td>RE installed Capacity (Ground)(KW)</td><td>NA</td></tr>
+      <tr><td class="sr-col">14</td><td>Installation Date</td><td><strong class="ph">{{installation_date}}</strong></td></tr>
+      <tr>
+        <td class="sr-col">15</td>
+        <td>RE installed Capacity (Total) (KW)<br>Inverter Capacity (KW)<br>Inverter Make<br>No of PV Modules<br>Module Capacity (KW)</td>
+        <td>
+          <strong class="ph">{{inverter_capacity_kw}}</strong><br>
+          <strong class="ph">{{inverter_make_and_model}}</strong><br>
+          <strong class="ph">{{num_pv_modules}}</strong><br>
+          <strong class="ph">{{total_module_capacity_kwp}}</strong>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="uploads-label">To be uploaded separately:</div>
+  <ol class="uploads-list">
+    <li>Self-certification of safety of the installation of the RTS system along with the test report of the Licensed Electrical Contractor (Proforma-A).</li>
+    <li>Electrical Inspector permission if System is above 200 KW (Mandatory if system is above 200KW only)</li>
+    <li>Third party leasing agreement if Model selected is RESCO.</li>
+    <li>Photograph of the system commissioned.</li>
+  </ol>
+
+  <div class="date-sig-row">
+    <div class="date-block">Date: &nbsp;<strong class="ph">{{today_date}}</strong></div>
+    <div>
+      <div class="img-sig-inline"><strong class="ph">{{consumer_signature_image}}</strong></div>
+    </div>
+  </div>
+</div><!-- end page 1 -->
+
+
+<!-- PAGE 2: Proforma-A -->
+<div class="page">
+  <div class="page-header">
+    <div class="header-logo">
+      <img src="static/images/mahavitaran.png" alt="Mahavitaran Logo">
+    </div>
+    <div class="header-text">
+      <h3>Maharashtra State Electricity Distribution Co. Ltd.</h3>
+      <div class="regen-text">Renewable Energy Generating System</div>
+    </div>
+  </div>
+
+  <div class="proforma-title">Proforma-A</div>
+  <div class="proforma-sub">COMMISSIONING REPORT (PROVISIONAL) FOR GRID CONNECTED SOLAR<br>PHOTOVOLTAIC POWER PLANT (with Net-metering facility)</div>
+
+  <p class="proforma-body">Certified that a Grid Connected SPV Power Plant of <strong class="ph">{{inverter_capacity_kw}}</strong> KWp capacity has been installed at the site <strong class="ph">{{consumer_address}}</strong>, District <strong class="ph">{{city}}</strong> of MAHARASHTRA.</p>
+  <p class="proforma-body">The system was installed by <strong class="ph">{{agency_name}}</strong> on <strong class="ph">{{installation_date}}</strong> and is as per BIS/MNRE specifications.</p>
+  <p class="proforma-body">The system has been checked for its performance on <strong class="ph">{{performance_check_date}}</strong> with the installation of a bi-directional meter, and it is working satisfactorily.</p>
+
+  <div class="sig-area">
+    <div class="sig-row-left">
+      <div class="img-sig"><strong class="ph">{{consumer_signature_image}}</strong></div>
+      <div class="sig-label">Signature of the beneficiary</div>
+    </div>
+    <div class="sig-row-right">
+      <div class="img-sign"><strong class="ph">{{agency_stamp_image}}</strong></div>
+      <div class="sig-label">Signature of the agency</div>
+      <div class="sig-label">With name, seal and date</div>
+    </div>
+    <div class="sig-row-msedcl">
+      <div class="img-sig"></div>
+      <div class="sig-label">Signature of the MSEDCL Officer</div>
+      <div class="sig-label">With name, date and seal</div>
+    </div>
+  </div>
+</div><!-- end page 2 -->
+
+</body>
+</html>

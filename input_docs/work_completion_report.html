@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Work Completion Report - Solar Power Plant</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Times New Roman', Times, serif; font-size: 11pt; color: #000; background: #fff; }
+
+  @media screen {
+    body { background: #e0e0e0; padding: 20px; }
+    .page { width: 210mm; height: 297mm; background: #fff; margin: 0 auto 30px auto; padding: 10mm 15mm 8mm 15mm; box-shadow: 0 4px 16px rgba(0,0,0,0.18); overflow: hidden; position: relative; }
+  }
+  @media print {
+    body { background: #fff; }
+    .page { width: 210mm; height: 297mm; padding: 10mm 15mm 8mm 15mm; page-break-after: always; overflow: hidden; position: relative; }
+    .page:last-child { page-break-after: auto; }
+  }
+  @page { size: A4 portrait; margin: 0; }
+
+  .ph { font-weight: bold; }
+
+  /* image slots — no background fill */
+  .img-sign  { display: inline-block; width: 90px;  height: 60px;  border: 1px dashed #999; vertical-align: bottom; }
+  .img-stamp { display: block;        width: 130px; height: 90px;  border: 1px dashed #999; }
+  .img-sig   { display: block;        width: 110px; height: 60px;  border: 1px dashed #999; }
+  .img-aadhar{ display: block;        width: 200px; height: 120px; border: 1px solid #999; }
+
+  h1.doc-title { font-size: 13pt; font-weight: bold; text-align: center; margin-bottom: 6px; text-decoration: underline; }
+
+  table.main-table { width: 100%; border-collapse: collapse; margin-bottom: 6px; font-size: 9.5pt; }
+  table.main-table td, table.main-table th { border: 1px solid #000; padding: 2px 5px; vertical-align: top; }
+  table.main-table th { background: #d9d9d9; font-weight: bold; text-align: center; }
+  .sr-col { width: 7%; text-align: center; }
+  .comp-col { width: 42%; }
+  .obs-col { width: 51%; }
+  .merged-header { background: #efefef; font-weight: bold; text-align: left; }
+
+  .cert-text { font-size: 9.5pt; margin: 5px 0; text-align: justify; line-height: 1.4; }
+
+  .signature-block { margin-top: 10px; display: flex; justify-content: space-between; align-items: flex-end; }
+  .sig-box { text-align: center; width: 45%; }
+  .sig-label { font-weight: bold; font-size: 10pt; border-top: 1px solid #000; padding-top: 3px; margin-top: 4px; }
+
+  /* Page 2 */
+  .page2-title { font-size: 12pt; font-weight: bold; text-decoration: underline; margin-bottom: 8px; }
+  .guarantee-text { font-size: 10.5pt; line-height: 1.6; text-align: justify; margin-bottom: 16px; }
+  .identity-section { margin-top: 16px; font-size: 10.5pt; }
+  .identity-section p { margin-bottom: 5px; }
+</style>
+</head>
+<body>
+
+<!-- PAGE 1: Work Completion Report -->
+<div class="page">
+  <h1 class="doc-title">Work Completion Report for Solar Power Plant</h1>
+
+  <table class="main-table">
+    <thead>
+      <tr>
+        <th class="sr-col">Sr. No</th>
+        <th class="comp-col">Component</th>
+        <th class="obs-col">Observation</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td class="sr-col">1</td><td>Name</td><td><strong class="ph">{{consumer_name}}</strong></td></tr>
+      <tr><td class="sr-col">2</td><td>Consumer number</td><td><strong class="ph">{{consumer_number}}</strong></td></tr>
+      <tr><td class="sr-col">3</td><td>Site/Location With Complete Address</td><td><strong class="ph">{{consumer_address}}</strong></td></tr>
+      <tr><td class="sr-col">4</td><td>Category: Govt/Private Sector</td><td>Private Sector</td></tr>
+      <tr><td class="sr-col">5</td><td>Sanction number</td><td><strong class="ph">{{sanction_number}}</strong></td></tr>
+      <tr>
+        <td class="sr-col" rowspan="2">6</td>
+        <td>Sanctioned Capacity of solar PV system (KW)</td>
+        <td><strong class="ph">{{sanction_capacity_kw}}</strong> KW</td>
+      </tr>
+      <tr>
+        <td>Installed Capacity of solar PV system (KW)</td>
+        <td><strong class="ph">{{system_capacity_kw}}</strong> KW</td>
+      </tr>
+      <tr><td class="sr-col merged-header" rowspan="7">7</td><td class="merged-header" colspan="2">Specification of the Modules</td></tr>
+      <tr><td>Make of Module</td><td><strong class="ph">{{module_make}}</strong></td></tr>
+      <tr><td>ALMM Model Number</td><td><strong class="ph">{{almm_model_number}}</strong></td></tr>
+      <tr><td>Wattage per module</td><td><strong class="ph">{{module_capacity_wp}}</strong> WP</td></tr>
+      <tr><td>No. of Module</td><td><strong class="ph">{{num_pv_modules}}</strong></td></tr>
+      <tr><td>Total Capacity (KWP)</td><td><strong class="ph">{{total_module_capacity_kwp}}</strong> KW</td></tr>
+      <tr><td>Warrantee Details (Product + Performance)</td><td>12 + 13 Year</td></tr>
+
+      <tr><td class="sr-col merged-header" rowspan="7">8</td><td class="merged-header" colspan="2">PCU</td></tr>
+      <tr><td>Make &amp; Model number of Inverter</td><td><strong class="ph">{{inverter_make_and_model}}</strong></td></tr>
+      <tr><td>Rating</td><td><strong class="ph">{{inverter_rating_text}}</strong></td></tr>
+      <tr><td>Type of charge controller / MPPT</td><td>MPPT</td></tr>
+      <tr><td>Capacity of Inverter</td><td><strong class="ph">{{inverter_capacity_kw}}</strong> KW</td></tr>
+      <tr><td>HPD</td><td>30%</td></tr>
+      <tr><td>Year of manufacturing</td><td>2025</td></tr>
+
+      <tr><td class="sr-col merged-header" rowspan="4">9</td><td class="merged-header" colspan="2">Earthing and Protections</td></tr>
+      <tr><td>No of Separate Earthings with earth Resistance</td><td>Three &nbsp; AC 1.3 Ω &nbsp; DC 1.5 Ω</td></tr>
+      <tr>
+        <td colspan="2" style="font-size:8.5pt;">
+          It is certified that the Earth Resistance measure in presence of Licensed Electrical Contractor/Supervisor
+          and found in order i.e. &lt; 5 Ohms as per MNRE OM Dtd. 07.06.24 for CFA Component.
+        </td>
+      </tr>
+      <tr><td>Lightening Arrester</td><td>3 Ω</td></tr>
+    </tbody>
+  </table>
+
+  <p class="cert-text">
+    We <strong class="ph">{{agency_name}}</strong> [Vendor] &amp; <strong class="ph">{{consumer_name}}</strong> [Consumer] bearing Consumer Number
+    <strong class="ph">{{consumer_number}}</strong> Ensured structural stability of installed solar power plant and obtained requisite
+    permissions from the concerned authority. If in future, by virtue of any means due to collapsing or damage to
+    installed solar power plant, MSEDCL will not be held responsible for any loss to property or human life, if any.
+  </p>
+
+  <p class="cert-text">
+    This is to Certified above Installed Solar PV System is working properly with electrical safety &amp; Islanding
+    switch in case of any presence of backup inverter an arrangement should be made in such way the backup inverter
+    supply should never be synchronized with solar inverter to avoid any electrical accident due to back feeding.
+    We will be held responsible for non-working of the islanding mechanism and back feed to the de-energized grid.
+  </p>
+
+  <div class="signature-block">
+    <div class="sig-box">
+      <div class="img-sign"><strong class="ph">{{agency_stamp_image}}</strong></div>
+      <div class="sig-label">Signature [Vendor]</div>
+    </div>
+    <div class="sig-box">
+      <div class="img-sign"><strong class="ph">{{consumer_signature_image}}</strong></div>
+      <div class="sig-label">Signature [Consumer]</div>
+    </div>
+  </div>
+</div><!-- end page 1 -->
+
+
+<!-- PAGE 2: Guarantee Certificate -->
+<div class="page">
+  <p class="page2-title">Guarantee Certificate</p>
+  <p style="font-size:11pt; font-weight:bold; margin-bottom:10px;">
+    Undertaking to be submitted by VENDOR :- <strong class="ph">{{agency_name}}</strong>
+  </p>
+
+  <p class="guarantee-text">
+    The undersigned will provide the services to the consumers for repairs/maintenance of the RTS plant free of cost
+    for 5 years of the comprehensive Maintenance Contract (CMC) period from the date of commissioning of the plant.
+    Non performing/under-performing system component will be replaced/repaired free of cost in the CMC period.
+  </p>
+
+  <div style="margin-top: 20px;">
+    <div class="img-stamp"><strong class="ph">{{agency_stamp_image}}</strong></div>
+    <p style="font-weight:bold; margin-top:6px;">Signature [Vendor] &nbsp;&nbsp; Stamp &amp; Seal</p>
+  </div>
+
+  <div class="identity-section" style="margin-top: 30px;">
+    <p><strong>Identity Details of Consumer :-</strong> &nbsp; <strong class="ph">{{consumer_name}}</strong></p>
+    <p style="margin-top:6px;"><strong>Aadhar Number :-</strong> &nbsp; <strong class="ph">{{consumer_aadhar_num}}</strong></p>
+
+    <div style="display:flex; gap:40px; margin-top:16px; align-items:flex-end;">
+      <div>
+        <div class="img-aadhar"><strong class="ph">{{consumer_aadhar_image}}</strong></div>
+        <p style="font-size:9pt; text-align:center; margin-top:3px;">Aadhar Card</p>
+      </div>
+      <div>
+        <div class="img-sig"><strong class="ph">{{consumer_signature_image}}</strong></div>
+        <div class="sig-label" style="width:160px; border-top:1px solid #000; padding-top:3px; margin-top:4px; font-weight:bold; font-size:10pt;">Signature [Consumer]</div>
+      </div>
+    </div>
+  </div>
+</div><!-- end page 2 -->
+
+</body>
+</html>

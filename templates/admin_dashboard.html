@@ -255,92 +255,47 @@
   {% endif %}
 </div>
 
-<!-- ── Payment / UPI Settings Panel ─────────────────────────────── -->
-<div class="table-wrap mt-4" style="border-radius:var(--radius-lg);overflow:visible;">
-  <div style="padding:16px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;background:var(--bg-card);border-radius:var(--radius-lg) var(--radius-lg) 0 0;">
-    <div style="width:34px;height:34px;background:var(--accent-pale);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--accent);">
-      <i class="ph ph-qr-code" style="font-size:16px;"></i>
-    </div>
-    <div>
-      <div style="font-weight:700;font-size:0.9rem;">Payment &amp; Contact Settings</div>
-      <div style="font-size:0.73rem;color:var(--text-muted);">
-        Set in <code style="background:var(--bg-subtle);padding:1px 5px;border-radius:4px;font-size:0.72rem;">.env</code>
-        — edit the file and restart the server to update
+<!-- ── Admin Contact Info Panel ───────────────────────────────────── -->
+<div class="table-wrap mt-4" style="border-radius:var(--radius-lg);">
+  <div style="padding:16px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--bg-card);border-radius:var(--radius-lg) var(--radius-lg) 0 0;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="width:34px;height:34px;background:var(--accent-pale);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--accent);">
+        <i class="ph ph-address-book" style="font-size:16px;"></i>
+      </div>
+      <div>
+        <div style="font-weight:700;font-size:0.9rem;">Admin Contact Details</div>
+        <div style="font-size:0.73rem;color:var(--text-muted);">Shown to agencies on login page and expired subscription screen</div>
       </div>
     </div>
+    <a href="{{ url_for('admin_export') }}" class="btn btn-sm btn-primary px-4">
+      <i class="ph ph-microsoft-excel-logo me-1"></i> Download Excel Report
+    </a>
   </div>
-
-  <div style="padding:20px 24px;background:var(--bg-card);display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start;border-radius:0 0 var(--radius-lg) var(--radius-lg);">
-
-    <!-- UPI block -->
-    <div style="display:flex;flex-direction:column;gap:10px;min-width:220px;">
-      <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-muted);">
-        <i class="ph ph-currency-inr" style="font-size:12px;"></i> UPI Payment
-      </div>
-      {% if payment_info.upi_id %}
-        <div style="display:flex;align-items:center;gap:8px;">
-          <i class="ph ph-device-mobile" style="color:var(--accent);font-size:18px;"></i>
-          <span style="font-weight:700;font-size:0.95rem;color:var(--text);">{{ payment_info.upi_id }}</span>
-          <span class="chip chip-green">Active</span>
-        </div>
-      {% else %}
-        <div style="font-size:0.82rem;color:var(--text-muted);">
-          <i class="ph ph-warning" style="font-size:14px;color:var(--warn);"></i>
-          ADMIN_UPI_ID not set in .env
-        </div>
-      {% endif %}
-      {% if payment_info.upi_qr_url %}
-        <div>
-          <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:5px;">QR Code</div>
-          <img src="{{ payment_info.upi_qr_url }}"
-               style="height:72px;width:72px;object-fit:contain;border:1px solid var(--border);border-radius:var(--radius);background:white;padding:4px;">
-        </div>
-      {% endif %}
+  <div style="padding:20px 24px;background:var(--bg-card);display:flex;flex-wrap:wrap;gap:16px;align-items:center;border-radius:0 0 var(--radius-lg) var(--radius-lg);">
+    {% if payment_info.admin_phone %}
+    <div style="display:flex;align-items:center;gap:8px;padding:9px 16px;background:var(--accent-pale);border:1px solid var(--border);border-radius:var(--radius);">
+      <i class="ph ph-phone" style="color:var(--accent);font-size:16px;"></i>
+      <span style="font-weight:600;font-size:0.88rem;">{{ payment_info.admin_phone }}</span>
     </div>
-
-    <div style="width:1px;background:var(--border);align-self:stretch;"></div>
-
-    <!-- Contact block -->
-    <div style="display:flex;flex-direction:column;gap:10px;min-width:220px;">
-      <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-muted);">
-        <i class="ph ph-address-book" style="font-size:12px;"></i> Admin Contact
-      </div>
-      {% if payment_info.admin_phone %}
-        <div style="display:flex;align-items:center;gap:7px;font-size:0.84rem;">
-          <i class="ph ph-phone" style="color:var(--accent);font-size:15px;flex-shrink:0;"></i>
-          <span style="font-weight:600;color:var(--text);">{{ payment_info.admin_phone }}</span>
-        </div>
-      {% endif %}
-      {% if payment_info.admin_whatsapp %}
-        <div style="display:flex;align-items:center;gap:7px;font-size:0.84rem;">
-          <i class="ph ph-chats" style="color:#2E7D32;font-size:15px;flex-shrink:0;"></i>
-          <span style="font-weight:600;color:var(--text);">{{ payment_info.admin_whatsapp }}</span>
-          <span class="chip chip-green">WhatsApp</span>
-        </div>
-      {% endif %}
-      {% if payment_info.admin_email %}
-        <div style="display:flex;align-items:center;gap:7px;font-size:0.84rem;">
-          <i class="ph ph-envelope" style="color:var(--accent);font-size:15px;flex-shrink:0;"></i>
-          <span style="font-weight:600;color:var(--text);">{{ payment_info.admin_email }}</span>
-        </div>
-      {% endif %}
-      {% if not payment_info.admin_phone and not payment_info.admin_whatsapp and not payment_info.admin_email %}
-        <div style="font-size:0.82rem;color:var(--text-muted);">
-          <i class="ph ph-warning" style="font-size:14px;color:var(--warn);"></i>
-          ADMIN_PHONE / ADMIN_WHATSAPP / ADMIN_EMAIL not set in .env
-        </div>
-      {% endif %}
+    {% endif %}
+    {% if payment_info.admin_whatsapp %}
+    <div style="display:flex;align-items:center;gap:8px;padding:9px 16px;background:#F0FBF0;border:1px solid #A8DCA0;border-radius:var(--radius);">
+      <i class="ph ph-chats" style="color:#2E7D32;font-size:16px;"></i>
+      <span style="font-weight:600;font-size:0.88rem;color:#2E7D32;">{{ payment_info.admin_whatsapp }}</span>
     </div>
-
-    <!-- .env hint -->
-    <div style="margin-left:auto;background:var(--bg-subtle);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;font-size:0.75rem;color:var(--text-muted);line-height:1.8;align-self:center;">
-      <div style="font-weight:700;color:var(--text);margin-bottom:6px;">Edit in <code>.env</code></div>
-      <div>ADMIN_UPI_ID=<span style="color:var(--accent);">yourname@paytm</span></div>
-      <div>ADMIN_UPI_QR_URL=<span style="color:var(--accent);">https://...</span></div>
-      <div>ADMIN_PHONE=<span style="color:var(--accent);">9876543210</span></div>
-      <div>ADMIN_WHATSAPP=<span style="color:var(--accent);">9876543210</span></div>
-      <div>ADMIN_EMAIL=<span style="color:var(--accent);">admin@solardoc.in</span></div>
+    {% endif %}
+    {% if payment_info.admin_email %}
+    <div style="display:flex;align-items:center;gap:8px;padding:9px 16px;background:var(--accent-pale);border:1px solid var(--border);border-radius:var(--radius);">
+      <i class="ph ph-envelope" style="color:var(--accent);font-size:16px;"></i>
+      <span style="font-weight:600;font-size:0.88rem;">{{ payment_info.admin_email }}</span>
     </div>
+    {% endif %}
+    {% if not payment_info.admin_phone and not payment_info.admin_whatsapp and not payment_info.admin_email %}
+    <span style="font-size:0.82rem;color:var(--text-muted);">
+      <i class="ph ph-warning" style="color:var(--warn);"></i>
+      Set ADMIN_PHONE, ADMIN_WHATSAPP, ADMIN_EMAIL in your .env file.
+    </span>
+    {% endif %}
   </div>
 </div>
 

@@ -95,7 +95,7 @@
 <!-- Action cards -->
 <div class="row g-3 mb-0">
   <div class="col-md-6">
-    <a href="{{ url_for('generate') }}" class="action-card">
+    <a href="{{ au('generate') }}" class="action-card">
       <div class="action-icon" style="background:var(--accent-pale);color:var(--accent);"><i class="ph ph-file-arrow-up"></i></div>
       <div class="action-title">Generate Documents</div>
       <p class="action-desc">Fill in consumer and installation details to generate a complete solar document package — DOCX and PDF in one ZIP file.</p>
@@ -103,7 +103,7 @@
     </a>
   </div>
   <div class="col-md-6">
-    <a href="{{ url_for('history') }}" class="action-card">
+    <a href="{{ au('history') }}" class="action-card">
       <div class="action-icon" style="background:var(--bg-subtle);color:var(--text-muted);"><i class="ph ph-clock-clockwise"></i></div>
       <div class="action-title">Generation History</div>
       <p class="action-desc">Browse all previously generated document sets. Search by consumer name, number or city. View full details or delete records.</p>
@@ -169,95 +169,10 @@
 </div>
 {% endif %}
 
-<!-- ── Renew / Pay section ─────────────────────────────────────── -->
-{% if payment_info and (payment_info.upi_id or payment_info.upi_qr_url) %}
-<div class="renew-card">
-  <div class="renew-hd">
-    <div style="display:flex;align-items:center;gap:12px;">
-      <div class="renew-ico"><i class="ph ph-currency-inr"></i></div>
-      <div>
-        <div style="font-weight:700;font-size:0.9rem;">Renew Your Subscription</div>
-        <div style="font-size:0.73rem;color:var(--text-muted);">
-          {% if session.user.days_left is defined and session.user.days_left < 9999 %}
-            {% if session.user.days_left <= 0 %}Expired — pay to resume access
-            {% elif session.user.days_left <= 30 %}{{ session.user.days_left }} days left — pay to extend
-            {% else %}{{ session.user.days_left }} days remaining{% endif %}
-          {% else %}Pay via UPI to renew{% endif %}
-        </div>
-      </div>
-    </div>
-    <button class="btn btn-sm btn-outline-secondary" id="togglePayBtn" onclick="togglePay()">
-      <i class="ph ph-qr-code me-1"></i> Show Payment Details
-    </button>
-  </div>
-
-  <div id="paymentPanel" style="display:none;">
-    <div class="upi-panel">
-
-      <ul class="steps-list">
-        <li><span class="num">1</span>Open GPay, PhonePe, Paytm or any UPI app</li>
-        <li><span class="num">2</span>Scan the QR code below or enter the UPI ID manually</li>
-        <li><span class="num">3</span>Pay the subscription amount — note your transaction ID</li>
-        <li><span class="num">4</span>Share your transaction ID with the administrator to activate</li>
-      </ul>
-
-      {% if payment_info.upi_qr_url %}
-      <div class="qr-box">
-        <img src="{{ payment_info.upi_qr_url }}" alt="UPI QR Code">
-      </div>
-      {% endif %}
-
-      {% if payment_info.upi_id %}
-      <div style="text-align:center;">
-        <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:8px;">UPI ID</div>
-        <div class="upi-id-box">
-          <i class="ph ph-device-mobile" style="color:var(--accent);font-size:20px;flex-shrink:0;"></i>
-          <span class="upi-id-val" id="upiIdVal">{{ payment_info.upi_id }}</span>
-          <button class="copy-btn" onclick="copyUpi()">
-            <i class="ph ph-copy" id="copyIco"></i>
-            <span id="copyTxt">Copy</span>
-          </button>
-        </div>
-      </div>
-      {% endif %}
-
-      <div style="font-size:0.76rem;color:var(--text-muted);text-align:center;max-width:340px;line-height:1.6;">
-        After paying, contact the administrator with your <strong>agency name</strong> and <strong>transaction ID</strong> for subscription activation.
-      </div>
-    </div>
-  </div>
-</div>
-{% endif %}
-
 {% endblock %}
 
 {% block scripts %}
 <script>
-// Payment reveal toggle
-function togglePay(){
-  const panel = document.getElementById('paymentPanel');
-  const btn   = document.getElementById('togglePayBtn');
-  const open  = panel.style.display === 'none';
-  panel.style.display = open ? 'block' : 'none';
-  btn.innerHTML = open
-    ? '<i class="ph ph-x me-1"></i> Hide'
-    : '<i class="ph ph-qr-code me-1"></i> Show Payment Details';
-  if(open) btn.classList.replace('btn-outline-secondary','btn-outline-danger');
-  else     btn.classList.replace('btn-outline-danger','btn-outline-secondary');
-}
-
-// Copy UPI ID
-function copyUpi(){
-  const val = document.getElementById('upiIdVal')?.textContent?.trim();
-  if(!val) return;
-  navigator.clipboard.writeText(val).then(function(){
-    document.getElementById('copyTxt').textContent = 'Copied!';
-    document.getElementById('copyIco').className   = 'ph ph-check';
-    setTimeout(function(){
-      document.getElementById('copyTxt').textContent = 'Copy';
-      document.getElementById('copyIco').className   = 'ph ph-copy';
-    }, 2200);
-  });
 }
 </script>
 {% endblock %}

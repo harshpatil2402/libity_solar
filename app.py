@@ -1,59 +1,40 @@
-import os, zipfile, io, base64, tempfile, subprocess, glob, uuid, requests, shutil, threading
+import os, zipfile, io, base64, tempfile, subprocess, glob, uuid, requests, shutil, threading, re
 from math import ceil
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, session, redirect, url_for, flash, jsonify, send_file
+from flask import Flask, render_template, request, session, redirect, url_for, flash, jsonify, send_file, Response
 from supabase import create_client
-from docxtpl import DocxTemplate, InlineImage
-from docx.shared import Cm
+from weasyprint import HTML as WP_HTML, CSS
 from PIL import Image, ImageOps
 from dotenv import load_dotenv
 from functools import wraps
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
 load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
 
-BASE_DIR       = os.path.abspath(os.path.dirname(__file__))
-INPUT_DOCS_DIR = os.path.join(BASE_DIR, 'input_docs')
+BASE_DIR        = os.path.abspath(os.path.dirname(__file__))
+HTML_DOCS_DIR   = os.path.join(BASE_DIR, 'input_docs')   # HTML templates for WeasyPrint
 app.config['MAX_CONTENT_LENGTH']   = 50 * 1024 * 1024
 app.config['MAX_FORM_MEMORY_SIZE'] = 50 * 1024 * 1024
 
 PER_PAGE_ADMIN   = 10
 PER_PAGE_HISTORY = 15
 
+# WeasyPrint is in-process — no LibreOffice RAM spikes, no subprocess needed
 jobs, jobs_lock = {}, threading.Lock()
 
-# ── Hardcoded admin contact & payment — set these in .env, never in DB ────────
-# Required .env keys:
-#   ADMIN_UPI_ID        e.g.  yourname@paytm
-#   ADMIN_UPI_QR_URL    e.g.  https://... (hosted image URL, or leave blank)
-#   ADMIN_PHONE         e.g.  9876543210
-#   ADMIN_WHATSAPP      e.g.  9876543210  (digits only — used in wa.me link)
-#   ADMIN_EMAIL         e.g.  admin@solardoc.in
+# ── Admin contact info — hardcoded from .env ──────────────────────────────────
 ADMIN_INFO = {
-    'upi_id':         os.getenv('ADMIN_UPI_ID',      ''),
-    'upi_qr_url':     os.getenv('ADMIN_UPI_QR_URL',  ''),
-    'admin_phone':    os.getenv('ADMIN_PHONE',        ''),
-    'admin_whatsapp': os.getenv('ADMIN_WHATSAPP',     ''),
-    'admin_email':    os.getenv('ADMIN_EMAIL',        ''),
+    'admin_phone':    os.getenv('ADMIN_PHONE',    ''),
+    'admin_whatsapp': os.getenv('ADMIN_WHATSAPP', ''),
+    'admin_email':    os.getenv('ADMIN_EMAIL',    ''),
 }
 
-# ── Image target sizes at 150 dpi (aspect-ratio locked) ──────────────────────
-# Derived from docxtpl InlineImage dimensions:
-#   signature  4.5 × 1.5 cm  → 266 × 89 px   ratio 3.00
-#   aadhar    11.0 × 7.0 cm  → 650 × 413 px  ratio 1.57
-#   stamp      6.5 × 2.5 cm  → 384 × 148 px  ratio 2.60
-#   logo       4.5 × 4.5 cm  → 266 × 266 px  ratio 1.00
-IMG_TARGETS = {
-    'consumer_signature_image': (266,  89),
-    'consumer_aadhar_image':    (650, 413),
-    'agency_stamp_image':       (384, 148),
-    'agency_logo_image':        (266, 266),
-}
-
-# ── Pre-loaded DocxTemplate cache (loaded once at startup) ───────────────────
-_TEMPLATE_CACHE: dict[str, bytes] = {}   # fname → raw docx bytes
+# ── HTML template cache (loaded once at startup) ──────────────────────────────
+_HTML_CACHE: dict[str, str] = {}   # fname → raw HTML string
 
 # ── Decorators ────────────────────────────────────────────────────────────────
 def login_required(f):
@@ -87,93 +68,38 @@ def job_log(jid, msg, error=False):
         if jid in jobs:
             jobs[jid]['logs'].append({'msg': msg, 'error': error})
 
-def _resize_to_target(img: Image.Image, target_wh: tuple[int,int]) -> Image.Image:
-    """
-    Resize `img` to fit exactly within target (w, h) while preserving aspect
-    ratio, then paste onto a white canvas of exactly target_wh size.
-    This guarantees the InlineImage in Word never stretches.
-    """
-    tw, th = target_wh
-    img = img.convert('RGB')
-    img.thumbnail((tw, th), Image.LANCZOS)   # shrink in-place, keep ratio
-    canvas = Image.new('RGB', (tw, th), (255, 255, 255))
-    ox = (tw - img.width)  // 2
-    oy = (th - img.height) // 2
-    canvas.paste(img, (ox, oy))
-    return canvas
+def img_to_data_uri(img_bytes: bytes, mime='image/jpeg') -> str:
+    """Convert raw image bytes to a base64 data URI for inline HTML embedding."""
+    return f"data:{mime};base64,{base64.b64encode(img_bytes).decode()}"
 
-def process_b64_image(b64: str, key: str = '') -> bytes | None:
-    """
-    Decode base64, resize to the locked aspect-ratio target for `key`,
-    and return JPEG bytes.  Quality 90 for sharp document reproduction.
-    """
+def b64_to_jpeg_bytes(b64: str) -> bytes | None:
+    """Decode base64 image string, convert to JPEG bytes."""
     if not b64:
         return None
     try:
         if ',' in b64:
             b64 = b64.split(',')[1]
-        img = Image.open(io.BytesIO(base64.b64decode(b64)))
-        target = IMG_TARGETS.get(key)
-        if target:
-            img = _resize_to_target(img, target)
-        else:
-            img = img.convert('RGB')
+        img = Image.open(io.BytesIO(base64.b64decode(b64))).convert('RGB')
         out = io.BytesIO()
         img.save(out, format='JPEG', quality=90, optimize=True)
         return out.getvalue()
     except Exception as e:
-        print(f"Image error [{key}]: {e}")
+        print(f"Image decode error: {e}")
         return None
 
-def process_url_image(url: str, key: str = '') -> bytes | None:
-    """Download branding image, resize to target, return JPEG bytes."""
+def url_to_jpeg_bytes(url: str) -> bytes | None:
+    """Download image from URL, convert to JPEG bytes."""
     if not url:
         return None
     try:
         r = requests.get(url, timeout=10)
         r.raise_for_status()
-        img = Image.open(io.BytesIO(r.content))
-        target = IMG_TARGETS.get(key)
-        if target:
-            img = _resize_to_target(img, target)
-        else:
-            img = img.convert('RGB')
+        img = Image.open(io.BytesIO(r.content)).convert('RGB')
         out = io.BytesIO()
         img.save(out, format='JPEG', quality=90, optimize=True)
         return out.getvalue()
     except Exception:
         return None
-
-def fetch_url_bytes(url):
-    if not url:
-        return None
-    try:
-        r = requests.get(url, timeout=10)
-        r.raise_for_status()
-        return r.content
-    except Exception:
-        return None
-
-def preload_templates():
-    """
-    Read each input .docx into memory once at startup.
-    render_doc clones from these bytes, never touching disk per-job.
-    """
-    doc_names = [
-        "commissioning_report.docx",
-        "meter_testing.docx",
-        "model_agreement.docx",
-        "net_metering.docx",
-        "work_completion.docx",
-    ]
-    loaded = 0
-    for name in doc_names:
-        path = os.path.join(INPUT_DOCS_DIR, name)
-        if os.path.exists(path):
-            with open(path, 'rb') as f:
-                _TEMPLATE_CACHE[name] = f.read()
-            loaded += 1
-    print(f"[SolarDoc] Preloaded {loaded}/{len(doc_names)} templates into memory.")
 
 def upload_image(b64, bucket):
     if not b64:
@@ -187,63 +113,63 @@ def upload_image(b64, bucket):
         print(f"Upload error: {e}")
         return None
 
-# ── Document generation ───────────────────────────────────────────────────────
-def convert_pdf(docx_path: str, out_dir: str, jid: str):
-    """Convert one DOCX → PDF using an isolated LibreOffice profile."""
-    p = tempfile.mkdtemp()
-    try:
-        subprocess.run(
-            ['libreoffice', f'-env:UserInstallation=file://{p}',
-             '--headless', '--convert-to', 'pdf', '--outdir', out_dir, docx_path],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60)
-        job_log(jid, f"PDF: {os.path.basename(docx_path).replace('.docx','')}")
-    except subprocess.TimeoutExpired:
-        job_log(jid, f"PDF timeout: {os.path.basename(docx_path)}", error=True)
-    finally:
-        shutil.rmtree(p, ignore_errors=True)
+def preload_templates():
+    """Load HTML templates into memory at startup."""
+    html_names = [
+        "commissioning_report.html",
+        "meter_testing.html",
+        "model_agreement.html",
+        "net_metering_agreement.html",
+        "work_completion_report.html",
+    ]
+    loaded = 0
+    for name in html_names:
+        path = os.path.join(HTML_DOCS_DIR, name)
+        if os.path.exists(path):
+            with open(path, 'r', encoding='utf-8') as f:
+                _HTML_CACHE[name] = f.read()
+            loaded += 1
+    print(f"[LibityInfotech] Preloaded {loaded}/{len(html_names)} HTML templates.")
 
-def render_doc(doc_info, tmp: str, ctx: dict, imap: dict, jid: str,
-               fmt: str, pdf_threads: list, pdf_lock: threading.Lock):
+# ── WeasyPrint PDF generation ─────────────────────────────────────────────────
+def fill_html_template(html: str, ctx: dict) -> str:
     """
-    Fill one template from in-memory cache.
-    Immediately spawns PDF conversion as soon as DOCX is saved —
-    so DOCX rendering and PDF conversion overlap (pipeline parallelism).
+    Replace {{variable}} placeholders in HTML with ctx values.
+    Images are embedded as data URIs.
+    Removes yellow highlight spans after substitution.
     """
-    fname, oname = doc_info
+    for key, val in ctx.items():
+        if val is not None:
+            html = html.replace('{{' + key + '}}', str(val))
+    # Clear any unfilled placeholders
+    html = re.sub(r'\{\{[^}]+\}\}', '', html)
+    # Remove yellow highlight (only needed for template editing, not output)
+    html = html.replace(' class="highlight"', '').replace(' class=\'highlight\'', '')
+    return html
+
+def render_pdf(fname: str, oname: str, ctx: dict, jid: str) -> bytes | None:
+    """Render one HTML template → PDF bytes using WeasyPrint."""
     try:
-        job_log(jid, f"Filling {oname} ...")
-        raw = _TEMPLATE_CACHE.get(fname)
-        if raw is None:                          # cold-cache fallback
-            src = os.path.join(INPUT_DOCS_DIR, fname)
-            if not os.path.exists(src):
+        job_log(jid, f"Rendering {oname} ...")
+        html_src = _HTML_CACHE.get(fname)
+        if html_src is None:
+            path = os.path.join(HTML_DOCS_DIR, fname)
+            if not os.path.exists(path):
                 job_log(jid, f"Missing template: {fname}", error=True)
-                return
-            with open(src, 'rb') as f:
-                raw = f.read()
-
-        doc = DocxTemplate(io.BytesIO(raw))      # clone from cached bytes — no disk I/O
-        c   = ctx.copy()
-        for k, v in imap.items():
-            if v:
-                s = io.BytesIO(v)
-                if   'signature' in k: c[k] = InlineImage(doc, s, width=Cm(4.5), height=Cm(1.5))
-                elif 'aadhar'    in k: c[k] = InlineImage(doc, s, width=Cm(11),  height=Cm(7))
-                elif 'stamp'     in k: c[k] = InlineImage(doc, s, width=Cm(6.5), height=Cm(2.5))
-                elif 'logo'      in k: c[k] = InlineImage(doc, s, width=Cm(4.5), height=Cm(4.5))
-        doc.render(c)
-        docx_out = os.path.join(tmp, f"{oname}.docx")
-        doc.save(docx_out)
-        job_log(jid, f"DOCX done: {oname}")
-
-        # ── Immediately start PDF conversion for this doc ──────────
-        if fmt in ('pdf', 'both'):
-            t = threading.Thread(target=convert_pdf, args=(docx_out, tmp, jid), daemon=True)
-            with pdf_lock:
-                pdf_threads.append(t)
-            t.start()
-
+                return None
+            with open(path, 'r', encoding='utf-8') as f:
+                html_src = f.read()
+        filled = fill_html_template(html_src, ctx)
+        # WeasyPrint: base_url=HTML_DOCS_DIR lets @font-face and static refs resolve
+        pdf_bytes = WP_HTML(
+            string=filled,
+            base_url=HTML_DOCS_DIR
+        ).write_pdf()
+        job_log(jid, f"Done: {oname}.pdf")
+        return pdf_bytes
     except Exception as e:
         job_log(jid, f"Failed {oname}: {e}", error=True)
+        return None
 
 def run_job(jid, form_data, agency_id):
     def log(m, e=False): job_log(jid, m, e)
@@ -252,88 +178,119 @@ def run_job(jid, form_data, agency_id):
         profile    = supabase.table('agencies').select('*').eq('id', agency_id).single().execute().data
         sig_b64    = form_data.pop('sig_b64', None)
         aadhar_b64 = form_data.pop('aadhar_b64', None)
-        fmt        = form_data.pop('format', 'both')
+        form_data.pop('format', None)   # always PDF now
 
-        # ── 4 images in parallel, each pre-resized to locked aspect ratio ──
-        log("Processing & resizing images ...")
-        res = [None] * 4
-        def fetch(i, fn): res[i] = fn()
+        # ── Process images in parallel ────────────────────────────
+        log("Processing images ...")
+        results = [None] * 4
+        def fetch(i, fn): results[i] = fn()
         ts = [threading.Thread(target=fetch, args=(i, fn)) for i, fn in enumerate([
-            lambda: process_b64_image(sig_b64,    'consumer_signature_image'),
-            lambda: process_b64_image(aadhar_b64, 'consumer_aadhar_image'),
-            lambda: process_url_image(profile.get('logo_url'),  'agency_logo_image'),
-            lambda: process_url_image(profile.get('stamp_url'), 'agency_stamp_image'),
+            lambda: b64_to_jpeg_bytes(sig_b64),
+            lambda: b64_to_jpeg_bytes(aadhar_b64),
+            lambda: url_to_jpeg_bytes(profile.get('logo_url')),
+            lambda: url_to_jpeg_bytes(profile.get('stamp_url')),
         ])]
         for t in ts: t.start()
         for t in ts: t.join()
 
-        imap = {
-            'consumer_signature_image': res[0], 'consumer_aadhar_image': res[1],
-            'agency_logo_image':        res[2], 'agency_stamp_image':    res[3],
+        sig_bytes, aadhar_bytes, logo_bytes, stamp_bytes = results
+
+        # Convert images to data URIs for inline HTML embedding
+        def to_uri(b): return img_to_data_uri(b) if b else ''
+
+        # ── Context — every {{variable}} used across all 5 HTML templates ──
+        # New templates use direct form_data key names — no aliases needed.
+        fd   = form_data
+        inv  = fd.get('inverter_make_and_model', '')
+        # Split inverter make/model on first space for model_agreement
+        inv_parts  = inv.split(' ', 1) if inv else ['', '']
+        inv_make   = inv_parts[0]
+        inv_model  = inv_parts[1] if len(inv_parts) > 1 else inv
+
+        ctx = {
+            # ── Consumer ──────────────────────────────────────────
+            'consumer_name':           fd.get('consumer_name', ''),
+            'consumer_number':         fd.get('consumer_number', ''),
+            'consumer_contact_number': fd.get('consumer_contact_number', ''),
+            'consumer_email':          fd.get('consumer_email', ''),
+            'consumer_address':        fd.get('consumer_address', ''),
+            'consumer_aadhar_num':     fd.get('consumer_aadhar_num', ''),
+            'city':                    fd.get('city', ''),
+            # ── Grid / Sanction ────────────────────────────────────
+            'discom_division':         fd.get('discom_division', ''),
+            'licensee_name':           fd.get('licensee_name', ''),
+            'sanction_number':         fd.get('sanction_number', ''),
+            'sanction_capacity_kw':    fd.get('sanction_capacity_kw', ''),
+            'system_capacity_kw':      fd.get('system_capacity_kw', ''),
+            'agreement_solar_price':   fd.get('agreement_solar_price', ''),
+            # ── Modules ────────────────────────────────────────────
+            'module_make':             fd.get('module_make', ''),
+            'almm_model_number':       fd.get('almm_model_number', ''),
+            'module_efficiency':       fd.get('module_efficiency', ''),
+            'module_capacity_wp':      fd.get('module_capacity_wp', ''),
+            'num_pv_modules':          fd.get('num_pv_modules', ''),
+            'total_module_capacity_kwp': fd.get('total_module_capacity_kwp', ''),
+            # ── Inverter ───────────────────────────────────────────
+            'inverter_make_and_model': inv,
+            'inverter_make':           inv_make,   # model_agreement uses split fields
+            'inverter_model':          inv_model,
+            'inverter_capacity_kw':    fd.get('inverter_capacity_kw', ''),
+            'inverter_rating_text':    fd.get('inverter_rating_text', ''),
+            # ── Dates ──────────────────────────────────────────────
+            'agreement_date':          fd.get('agreement_date', ''),
+            'annexure_agreement_date': fd.get('annexure_agreement_date', ''),
+            'installation_date':       fd.get('installation_date', ''),
+            'meter_testing_date':      fd.get('meter_testing_date', ''),
+            'performance_check_date':  fd.get('performance_check_date', ''),
+            'today_date':              datetime.now().strftime('%d-%m-%Y'),
+            # ── Agency (from profile) ──────────────────────────────
+            'agency_name':             profile.get('agency_name', ''),
+            'agency_address':          profile.get('agency_address', ''),
+            'agency_contact':          profile.get('contact_number', ''),
+            'agency_director':         profile.get('director_name', ''),
+            # ── Images ────────────────────────────────────────────
+            # Signature / Aadhar / Stamp → <img> tags (replace placeholder divs)
+            'consumer_signature_image': f'<img src="{to_uri(sig_bytes)}" style="width:100%;height:100%;object-fit:contain;display:block;">' if sig_bytes else '',
+            'consumer_aadhar_image':    f'<img src="{to_uri(aadhar_bytes)}" style="width:100%;height:100%;object-fit:contain;display:block;">' if aadhar_bytes else '',
+            'agency_stamp_image':       f'<img src="{to_uri(stamp_bytes)}" style="width:100%;height:100%;object-fit:contain;display:block;">' if stamp_bytes else '',
+            # agency_logo used as raw src="..." in meter_testing header <img>
+            'agency_logo':              to_uri(logo_bytes) if logo_bytes else '',
         }
+
         docs = [
-            ("commissioning_report.docx", "1_Commissioning_Report"),
-            ("meter_testing.docx",         "2_Meter_Testing"),
-            ("model_agreement.docx",        "3_Model_Agreement"),
-            ("net_metering.docx",           "4_Net_Metering"),
-            ("work_completion.docx",         "5_Work_Completion"),
+            ("commissioning_report.html",   "1_Commissioning_Report"),
+            ("meter_testing.html",           "2_Meter_Testing"),
+            ("model_agreement.html",         "3_Model_Agreement"),
+            ("net_metering_agreement.html",  "4_Net_Metering"),
+            ("work_completion_report.html",  "5_Work_Completion"),
         ]
-        with tempfile.TemporaryDirectory() as tmp:
-            base_ctx = {
-                'agency_name':    profile.get('agency_name', ''),
-                'agency_address': profile.get('agency_address', ''),
-                'director_name':  profile.get('director_name', ''),
-                'agency_contact': profile.get('contact_number', ''),
-                'today_date':     datetime.now().strftime("%d-%m-%Y"),
-                **form_data
-            }
 
-            # ── Pipeline: each render_doc fires its own PDF thread immediately ──
-            pdf_threads: list = []
-            pdf_lock = threading.Lock()
+        # ── Render all 5 PDFs sequentially ───────────────────────
+        # WeasyPrint shares a font/CSS engine — running it in threads
+        # causes lock contention and is actually ~2× SLOWER than sequential.
+        # Sequential: ~4-5 s total. Threads: ~9 s. Don't thread this.
+        log("Generating PDFs ...")
+        pdf_results = []
+        for fname, oname in docs:
+            pdf_results.append(render_pdf(fname, oname, ctx, jid))
 
-            log("Filling all 5 templates (parallel) ...")
-            dts = [
-                threading.Thread(
-                    target=render_doc,
-                    args=(d, tmp, base_ctx, imap, jid, fmt, pdf_threads, pdf_lock),
-                    daemon=True)
-                for d in docs
-            ]
-            for t in dts: t.start()
-            for t in dts: t.join()           # wait for all DOCX done
+        # ── ZIP in memory ─────────────────────────────────────────
+        log("Building ZIP ...")
+        cn    = fd.get('consumer_name', 'Client').replace(' ', '_')
+        cno   = fd.get('consumer_number', '0000')
+        zname = f"{cn}_{cno}_{datetime.now().strftime('%d-%m-%Y_%H%M%S')}.zip"
+        zbuf  = io.BytesIO()
+        with zipfile.ZipFile(zbuf, 'w', zipfile.ZIP_STORED) as zf:
+            for i, (_, oname) in enumerate(docs):
+                if pdf_results[i]:
+                    zf.writestr(f"{oname}.pdf", pdf_results[i])
+        zbuf.seek(0)
 
-            # wait for any still-running PDF conversions (already mostly done)
-            if fmt in ('pdf', 'both'):
-                log("Finishing PDF conversions ...")
-                with pdf_lock:
-                    running = list(pdf_threads)
-                for t in running:
-                    t.join()
-
-            # ── ZIP built entirely in memory — never touches disk ──────────────
-            log("Building ZIP ...")
-            cn    = form_data.get('consumer_name', 'Client').replace(' ', '_')
-            cno   = form_data.get('consumer_number', '0000')
-            zname = f"{cn}_{cno}_{datetime.now().strftime('%d-%m-%Y_%H%M%S')}.zip"
-            zbuf  = io.BytesIO()
-            with zipfile.ZipFile(zbuf, 'w') as zf:
-                for f in os.listdir(tmp):
-                    full = os.path.join(tmp, f)
-                    if fmt == 'docx' and f.endswith('.docx'):
-                        zf.write(full, f, compress_type=zipfile.ZIP_DEFLATED)
-                    elif fmt == 'pdf' and f.endswith('.pdf'):
-                        zf.write(full, f, compress_type=zipfile.ZIP_STORED)
-                    elif fmt == 'both' and (f.endswith('.docx') or f.endswith('.pdf')):
-                        ct = zipfile.ZIP_DEFLATED if f.endswith('.docx') else zipfile.ZIP_STORED
-                        zf.write(full, f, compress_type=ct)
-            zbuf.seek(0)
-
-            with jobs_lock:
-                jobs[jid]['status']    = 'done'
-                jobs[jid]['zip_name']  = zname           # filename for Content-Disposition
-                jobs[jid]['zip_bytes'] = zbuf.getvalue() # raw bytes — served once, then deleted
-            log("ZIP ready — downloading.")
+        with jobs_lock:
+            jobs[jid]['status']    = 'done'
+            jobs[jid]['zip_name']  = zname
+            jobs[jid]['zip_bytes'] = zbuf.getvalue()
+        log("ZIP ready — downloading.")
     except Exception as e:
         job_log(jid, f"Fatal: {e}", error=True)
         with jobs_lock: jobs[jid]['status'] = 'error'
@@ -407,10 +364,7 @@ def login():
             f"username.eq.{lid},email.eq.{lid}").execute()
         if res.data and res.data[0]['password'] == pw:
             u = res.data[0]
-            if u['role'] != 'admin' and u.get('expires_at'):
-                if datetime.now().date() > datetime.strptime(u['expires_at'], '%Y-%m-%d').date():
-                    flash("Subscription expired. Contact administrator.", "danger")
-                    return redirect(url_for('login'))
+            # Allow login even if expired — agency sees blur screen with contact info
             u['days_left'] = days_left(u.get('expires_at')) or 9999
             session['user'] = u
             flash(f"Welcome back, {u['agency_name']}!", "success")
@@ -441,15 +395,46 @@ def logout():
 @app.route('/')
 @login_required
 def index():
-    return redirect(url_for('admin_dashboard' if session['user']['role'] == 'admin' else 'agency_dashboard'))
+    u = session['user']
+    if u['role'] == 'admin':
+        return redirect(url_for('admin_dashboard'))
+    # Agency users → their prefixed dashboard
+    return redirect(f"/{u['username']}/dashboard")
+
+# ── Jinja helper — builds prefixed URL for current agency user ────────────────
+@app.context_processor
+def inject_slug_helpers():
+    def au(endpoint, **kwargs):
+        """
+        Agency URL helper for templates.
+        For agency users, builds the /<username>/... prefixed URL.
+        Falls back to url_for for admin and unauthenticated.
+        """
+        from flask import session as _s
+        u = _s.get('user', {})
+        if u.get('role') == 'agency':
+            slug = u.get('username', '')
+            paths = {
+                'agency_dashboard': f'/{slug}/dashboard',
+                'generate':         f'/{slug}/generate',
+                'history':          f'/{slug}/history',
+            }
+            if endpoint in paths:
+                base = paths[endpoint]
+                if kwargs:
+                    qs = '&'.join(f'{k}={v}' for k, v in kwargs.items())
+                    return f'{base}?{qs}'
+                return base
+        return url_for(endpoint, **kwargs)
+    # Make ADMIN_INFO contact details available in every template
+    # (needed by expired-subscription overlay in base.html)
+    return dict(au=au, contact_info=ADMIN_INFO)
+    return dict(au=au)
 
 # ── Agency portal — branded login page at /<username> ────────────────────────
-# Each agency gets their own shareable URL: mydomain.com/sunpower_nagpur
-# Uses their existing username as the slug — no new DB column needed.
-# Reserved slugs (existing routes) are blocked below.
 _RESERVED_SLUGS = {
     'login', 'logout', 'dashboard', 'admin', 'generate', 'history',
-    'static', 'api', 'favicon.ico',
+    'static', 'api', 'favicon.ico', 'error',
 }
 
 @app.route('/<slug>')
@@ -464,32 +449,108 @@ def agency_portal(slug):
     except Exception:
         return redirect(url_for('login'))
     if not res.data:
-        # Unknown slug — fall through to normal login
         return redirect(url_for('login'))
     agency = res.data[0]
-    # Expired agencies still get their portal but a warning is shown
     dl = days_left(agency.get('expires_at') or '')
-    return render_template('portal.html',
-        agency=agency,
-        days_left=dl,
-        contact_info=ADMIN_INFO)
+    return render_template('portal.html', agency=agency, days_left=dl, contact_info=ADMIN_INFO)
 
-# ── Agency dashboard ──────────────────────────────────────────────────────────
-@app.route('/dashboard')
-@login_required
-def agency_dashboard():
+# ── Slug-prefixed agency routes ───────────────────────────────────────────────
+# After login, agency users are redirected to /<username>/dashboard.
+# All internal links use au() helper so they stay under the prefix.
+# The old flat routes (/dashboard, /generate, /history) still work as
+# redirects to the prefixed versions for robustness.
+
+def _slug_login_required(f):
+    """Decorator: checks login AND that the slug in the URL matches the session user."""
+    @wraps(f)
+    def d(slug, *a, **kw):
+        if 'user' not in session:
+            return redirect(f'/{slug}')
+        u = session['user']
+        if u.get('role') == 'admin':
+            return redirect(url_for('admin_dashboard'))
+        if u.get('username', '').lower() != slug.lower():
+            # Different user's URL — send them to their own
+            return redirect(f"/{u['username']}/{f.__name__.replace('slug_', '')}")
+        return f(slug, *a, **kw)
+    return d
+
+@app.route('/<slug>/dashboard')
+@_slug_login_required
+def slug_dashboard(slug):
     aid = session['user']['id']
     try:
         total_docs = supabase.table('generation_history').select('id', count='exact') \
                               .eq('agency_id', aid).execute().count or 0
     except Exception:
         total_docs = 0
+    return render_template('agency_dashboard.html', total_docs=total_docs, payment_info=ADMIN_INFO)
 
-    payment_info = ADMIN_INFO
+@app.route('/<slug>/generate')
+@_slug_login_required
+def slug_generate(slug):
+    prefill = {}
+    from_history = request.args.get('from_history', '').strip()
+    if from_history:
+        try:
+            aid = session['user']['id']
+            rec = (supabase.table('generation_history').select('*')
+                   .eq('id', from_history).eq('agency_id', aid).single().execute().data)
+            if rec:
+                skip = {'id', 'agency_id', 'created_at'}
+                prefill = {k: (v or '') for k, v in rec.items() if k not in skip}
+        except Exception:
+            pass
+    return render_template('generate_form.html', prefill=prefill)
 
-    return render_template('agency_dashboard.html',
-        total_docs=total_docs,
-        payment_info=payment_info)
+@app.route('/<slug>/history')
+@_slug_login_required
+def slug_history(slug):
+    aid  = session['user']['id']
+    q    = request.args.get('q', '').strip()
+    page = max(1, int(request.args.get('page', 1)))
+    all_r = (supabase.table('generation_history').select('*')
+             .eq('agency_id', aid).order('created_at', desc=True).execute().data or [])
+    if q:
+        ql    = q.lower()
+        all_r = [r for r in all_r if
+                 ql in (r.get('consumer_name') or '').lower() or
+                 ql in (r.get('consumer_number') or '').lower() or
+                 ql in (r.get('city') or '').lower()]
+    total       = len(all_r)
+    total_pages = max(1, ceil(total / PER_PAGE_HISTORY))
+    page        = min(page, total_pages)
+    records     = all_r[(page - 1) * PER_PAGE_HISTORY: page * PER_PAGE_HISTORY]
+    return render_template('history.html',
+        history=records, page=page, total_pages=total_pages, total=total, q=q)
+
+@app.route('/<slug>/history/<record_id>')
+@_slug_login_required
+def slug_history_detail(slug, record_id):
+    aid = session['user']['id']
+    rec = (supabase.table('generation_history').select('*')
+           .eq('id', record_id).eq('agency_id', aid).single().execute().data)
+    if not rec:
+        flash("Record not found.", "danger")
+        return redirect(f'/{slug}/history')
+    return render_template('history_detail.html', record=rec)
+
+@app.route('/<slug>/history/delete/<record_id>', methods=['POST'])
+@_slug_login_required
+def slug_history_delete(slug, record_id):
+    aid = session['user']['id']
+    supabase.table('generation_history').delete().eq('id', record_id).eq('agency_id', aid).execute()
+    flash("Record deleted.", "info")
+    return redirect(f'/{slug}/history?q={request.form.get("_q","")}&page={request.form.get("_page",1)}')
+
+# ── Old flat routes kept as redirects (backward compat) ──────────────────────
+@app.route('/dashboard')
+@login_required
+def agency_dashboard():
+    u = session['user']
+    if u['role'] == 'admin':
+        return redirect(url_for('admin_dashboard'))
+    return redirect(f"/{u['username']}/dashboard")
 
 # ── Admin dashboard — search + status filter + pagination ─────────────────────
 @app.route('/admin')
@@ -536,6 +597,126 @@ def admin_dashboard():
         page=page, total_pages=total_pages, total=total,
         search=search, status=status,
         payment_info=payment_info)
+
+# ── Admin: subscription + usage Excel export ──────────────────────────────────
+@app.route('/admin/export')
+@login_required
+@admin_required
+def admin_export():
+    """
+    Download an Excel file with:
+    - Sheet 1: Subscription report (agency, plan dates, renewal history)
+    - Sheet 2: Monthly document generation counts per agency
+    """
+    try:
+        agencies = supabase.table('agencies').select('*').neq('role', 'admin').execute().data or []
+        history  = supabase.table('generation_history').select(
+            'agency_id,created_at').execute().data or []
+    except Exception as e:
+        flash(f"Export failed: {e}", "danger")
+        return redirect(url_for('admin_dashboard'))
+
+    # Build agency lookup
+    agency_map = {a['id']: a for a in agencies}
+
+    # Count docs per agency per month
+    from collections import defaultdict
+    monthly = defaultdict(lambda: defaultdict(int))
+    for row in history:
+        aid = row.get('agency_id')
+        if aid and row.get('created_at'):
+            mo = row['created_at'][:7]   # "2025-03"
+            monthly[aid][mo] += 1
+
+    # All months present in history
+    all_months = sorted({row['created_at'][:7] for row in history if row.get('created_at')})
+
+    wb = openpyxl.Workbook()
+
+    # ── Sheet 1: Subscription report ──
+    ws1 = wb.active
+    ws1.title = "Subscriptions"
+
+    hdr_fill   = PatternFill("solid", fgColor="406093")
+    hdr_font   = Font(bold=True, color="FFFFFF", size=11)
+    alt_fill   = PatternFill("solid", fgColor="D6E4F0")
+    center     = Alignment(horizontal="center", vertical="center")
+    thin_side  = Side(style="thin", color="AAAAAA")
+    thin_border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
+
+    headers1 = ["Agency Name", "Director", "Contact", "Username", "Email",
+                "Subscription Start", "Subscription End", "Days Remaining", "Status",
+                "Total Docs Generated"]
+    for col, h in enumerate(headers1, 1):
+        cell = ws1.cell(row=1, column=col, value=h)
+        cell.fill = hdr_fill; cell.font = hdr_font
+        cell.alignment = center; cell.border = thin_border
+
+    col_widths1 = [28, 22, 16, 18, 28, 20, 20, 16, 12, 18]
+    for i, w in enumerate(col_widths1, 1):
+        ws1.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+    ws1.row_dimensions[1].height = 22
+
+    for row_i, a in enumerate(agencies, 2):
+        dl = days_left(a.get('expires_at') or '') or 0
+        status_str = "Active" if dl > 0 else "Expired"
+        total_docs_a = sum(monthly.get(a['id'], {}).values())
+        row_data = [
+            a.get('agency_name', ''),
+            a.get('director_name', ''),
+            a.get('contact_number', ''),
+            a.get('username', ''),
+            a.get('email', ''),
+            '',   # start date not tracked separately — leave blank
+            a.get('expires_at', ''),
+            dl,
+            status_str,
+            total_docs_a,
+        ]
+        fill = alt_fill if row_i % 2 == 0 else PatternFill("solid", fgColor="FFFFFF")
+        status_color = "91D06C" if dl > 0 else "FF6B6B"
+        for col_i, val in enumerate(row_data, 1):
+            cell = ws1.cell(row=row_i, column=col_i, value=val)
+            cell.border = thin_border
+            cell.alignment = Alignment(vertical="center")
+            if col_i != 9:
+                cell.fill = fill
+            else:
+                cell.fill = PatternFill("solid", fgColor=status_color)
+                cell.font = Font(bold=True, color="FFFFFF")
+
+    # ── Sheet 2: Monthly doc counts ──
+    ws2 = wb.create_sheet("Monthly Usage")
+    months_header = ["Agency Name"] + all_months
+    for col, h in enumerate(months_header, 1):
+        cell = ws2.cell(row=1, column=col, value=h)
+        cell.fill = hdr_fill; cell.font = hdr_font
+        cell.alignment = center; cell.border = thin_border
+
+    ws2.column_dimensions["A"].width = 28
+    for i in range(2, len(months_header) + 1):
+        ws2.column_dimensions[openpyxl.utils.get_column_letter(i)].width = 14
+    ws2.row_dimensions[1].height = 22
+
+    for row_i, a in enumerate(agencies, 2):
+        fill = alt_fill if row_i % 2 == 0 else PatternFill("solid", fgColor="FFFFFF")
+        ws2.cell(row=row_i, column=1, value=a.get('agency_name', '')).fill = fill
+        ws2.cell(row=row_i, column=1).border = thin_border
+        for col_i, mo in enumerate(all_months, 2):
+            count = monthly.get(a['id'], {}).get(mo, 0)
+            cell = ws2.cell(row=row_i, column=col_i, value=count if count else '')
+            cell.alignment = center; cell.border = thin_border
+            if count:
+                cell.fill = PatternFill("solid", fgColor="FFF799")
+            else:
+                cell.fill = fill
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    fname = f"LibityInfotech_Report_{datetime.now().strftime('%Y-%m-%d')}.xlsx"
+    return send_file(buf, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                     as_attachment=True, download_name=fname)
 
 # ── Admin: create ─────────────────────────────────────────────────────────────
 @app.route('/admin/agency/new', methods=['GET', 'POST'])
@@ -624,68 +805,46 @@ def delete_agency(id):
     flash("Agency deleted.", "info")
     return redirect(url_for('admin_dashboard'))
 
-# ── Generate ──────────────────────────────────────────────────────────────────
+# ── Generate (flat redirect → prefixed) ──────────────────────────────────────
 @app.route('/generate')
 @login_required
 def generate():
-    prefill = {}
-    from_history = request.args.get('from_history', '').strip()
+    u = session['user']
+    from_history = request.args.get('from_history', '')
+    dest = f"/{u['username']}/generate"
     if from_history:
-        try:
-            aid = session['user']['id']
-            rec = (supabase.table('generation_history').select('*')
-                   .eq('id', from_history).eq('agency_id', aid).single().execute().data)
-            if rec:
-                # Strip keys not relevant to the form
-                skip = {'id', 'agency_id', 'created_at'}
-                prefill = {k: (v or '') for k, v in rec.items() if k not in skip}
-        except Exception:
-            pass
-    return render_template('generate_form.html', prefill=prefill)
+        dest += f'?from_history={from_history}'
+    return redirect(dest)
 
-# ── History: list with search + pagination ────────────────────────────────────
+# ── History (flat redirect → prefixed) ───────────────────────────────────────
 @app.route('/history')
 @login_required
 def history():
-    aid  = session['user']['id']
-    q    = request.args.get('q', '').strip()
-    page = max(1, int(request.args.get('page', 1)))
-    all_r = (supabase.table('generation_history').select('*')
-             .eq('agency_id', aid).order('created_at', desc=True).execute().data or [])
-    if q:
-        ql    = q.lower()
-        all_r = [r for r in all_r if
-                 ql in (r.get('consumer_name') or '').lower() or
-                 ql in (r.get('consumer_number') or '').lower() or
-                 ql in (r.get('city') or '').lower()]
-    total       = len(all_r)
-    total_pages = max(1, ceil(total / PER_PAGE_HISTORY))
-    page        = min(page, total_pages)
-    records     = all_r[(page - 1) * PER_PAGE_HISTORY: page * PER_PAGE_HISTORY]
-    return render_template('history.html',
-        history=records, page=page, total_pages=total_pages, total=total, q=q)
+    u = session['user']
+    q    = request.args.get('q', '')
+    page = request.args.get('page', '')
+    dest = f"/{u['username']}/history"
+    params = []
+    if q:    params.append(f'q={q}')
+    if page: params.append(f'page={page}')
+    if params: dest += '?' + '&'.join(params)
+    return redirect(dest)
 
-# ── History: single record detail ─────────────────────────────────────────────
 @app.route('/history/<record_id>')
 @login_required
 def history_detail(record_id):
-    aid = session['user']['id']
-    rec = (supabase.table('generation_history').select('*')
-           .eq('id', record_id).eq('agency_id', aid).single().execute().data)
-    if not rec:
-        flash("Record not found.", "danger")
-        return redirect(url_for('history'))
-    return render_template('history_detail.html', record=rec)
+    u = session['user']
+    return redirect(f"/{u['username']}/history/{record_id}")
 
-# ── History: delete ───────────────────────────────────────────────────────────
 @app.route('/history/delete/<record_id>', methods=['POST'])
 @login_required
 def history_delete(record_id):
+    # Re-POST not possible via redirect; do the delete here then redirect
     aid = session['user']['id']
     supabase.table('generation_history').delete().eq('id', record_id).eq('agency_id', aid).execute()
     flash("Record deleted.", "info")
-    return redirect(url_for('history',
-        q=request.form.get('_q', ''), page=request.form.get('_page', 1)))
+    u = session['user']
+    return redirect(f"/{u['username']}/history")
 
 # ── Error handler ─────────────────────────────────────────────────────────────
 @app.errorhandler(Exception)
@@ -694,8 +853,18 @@ def handle_exc(e):
     if isinstance(e, HTTPException): return e
     return render_template('error.html', error_message=str(e)), 500
 
-# Pre-load templates into RAM so first job has zero disk cold-start penalty
+# Pre-load HTML templates into RAM
 preload_templates()
+
+# Pre-warm WeasyPrint font/CSS engine — first real render is instant
+# Without this the first job pays a ~1.5s cold-start penalty
+def _prewarm_weasyprint():
+    try:
+        WP_HTML(string="<p>warm</p>").write_pdf()
+        print("[LibityInfotech] WeasyPrint warmed up.")
+    except Exception:
+        pass
+threading.Thread(target=_prewarm_weasyprint, daemon=True).start()
 
 if __name__ == '__main__':
     app.run(debug=True, threaded=True)

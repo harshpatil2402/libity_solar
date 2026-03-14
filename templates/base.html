@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}SolarDoc{% endblock %}</title>
+  <title>{% block title %}LibityInfotech Solar{% endblock %}</title>
 
-  <!-- Inline SVG favicon — no CDN needed -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%234A7C59'/%3E%3Ccircle cx='16' cy='13' r='5' fill='%23FAF8F0' opacity='.95'/%3E%3Crect x='15' y='5' width='2' height='3' rx='1' fill='%23FAF8F0'/%3E%3Crect x='15' y='19' width='2' height='3' rx='1' fill='%23FAF8F0'/%3E%3Crect x='5' y='12' width='3' height='2' rx='1' fill='%23FAF8F0'/%3E%3Crect x='24' y='12' width='3' height='2' rx='1' fill='%23FAF8F0'/%3E%3Crect x='8' y='7' width='2' height='3' rx='1' fill='%23FAF8F0' transform='rotate(45 9 8.5)'/%3E%3Crect x='8' y='19' width='2' height='3' rx='1' fill='%23FAF8F0' transform='rotate(-45 9 20.5)'/%3E%3Crect x='20' y='7' width='2' height='3' rx='1' fill='%23FAF8F0' transform='rotate(-45 21 8.5)'/%3E%3Crect x='20' y='19' width='2' height='3' rx='1' fill='%23FAF8F0' transform='rotate(45 21 20.5)'/%3E%3Crect x='6' y='24' width='20' height='3' rx='1.5' fill='%23FAF8F0' opacity='.8'/%3E%3C/svg%3E">
+  <!-- Inline SVG favicon — blue theme -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23406093'/%3E%3Ccircle cx='16' cy='13' r='5' fill='%23FFF799' opacity='.95'/%3E%3Crect x='15' y='5' width='2' height='3' rx='1' fill='%23FFF799'/%3E%3Crect x='15' y='19' width='2' height='3' rx='1' fill='%23FFF799'/%3E%3Crect x='5' y='12' width='3' height='2' rx='1' fill='%23FFF799'/%3E%3Crect x='24' y='12' width='3' height='2' rx='1' fill='%23FFF799'/%3E%3Crect x='6' y='24' width='20' height='3' rx='1.5' fill='%2391D06C' opacity='.9'/%3E%3C/svg%3E">
 
   <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -18,54 +18,60 @@
   <script src="https://unpkg.com/@phosphor-icons/web@2.1.1/src/index.js" defer></script>
 
   <style>
-    /* ── THEME VARIABLES ─────────────────────────────────────────── */
+    /* ── THEME VARIABLES — LibityInfotech Blue Palette ───────────── */
     :root {
       --bg:           #FAF8F0;
       --bg-card:      #FFFFFF;
-      --bg-subtle:    #F2EFE4;
+      --bg-subtle:    #F0F4FA;
       --bg-input:     #FFFFFF;
-      --border:       #DDD9CC;
-      --border-focus: #4A7C59;
-      --text:         #2A2A20;
-      --text-muted:   #7A776A;
-      --text-light:   #AAA79D;
-      --accent:       #4A7C59;
-      --accent-hover: #3A6347;
-      --accent-pale:  #E8F0E8;
+      --border:       #C8D6E8;
+      --border-focus: #4C8CE4;
+      --text:         #1A2A3A;
+      --text-muted:   #5A6A7A;
+      --text-light:   #9AAABB;
+      --accent:       #406093;
+      --accent-2:     #4C8CE4;
+      --accent-green: #91D06C;
+      --accent-yellow:#FFF799;
+      --accent-hover: #2E4A73;
+      --accent-pale:  #E8F0F8;
       --accent-text:  #FFFFFF;
       --danger:       #B03030;
       --danger-pale:  #FDECEA;
       --warn:         #8A6020;
       --warn-pale:    #FFF4DC;
-      --success-pale: #E8F5EC;
+      --success-pale: #F0FAE8;
       --nav-h:        58px;
       --radius:       9px;
       --radius-lg:    13px;
-      --shadow:       0 2px 14px rgba(0,0,0,0.07);
-      --shadow-sm:    0 1px 5px rgba(0,0,0,0.05);
+      --shadow:       0 2px 14px rgba(64,96,147,0.10);
+      --shadow-sm:    0 1px 5px rgba(64,96,147,0.06);
     }
     [data-theme="dark"] {
-  --bg:           #1a1714;
-  --bg-card:      #23201d;
-  --bg-subtle:    #2d2926;
-  --bg-input:     #2d2926;
-  --border:       #403b36;
-  --border-focus: #d69e2e;
-  --text:         #ece8e1;
-  --text-muted:   #a8a29e;
-  --text-light:   #57534e;
-  --accent:       #d69e2e;
-  --accent-hover: #b7791f;
-  --accent-pale:  #3b2f15;
-  --accent-text:  #1a1714;
-  --danger:       #e53e3e;
-  --danger-pale:  #3d1616;
-  --warn:         #d69e2e;
-  --warn-pale:    #3b2f15;
-  --success-pale: #1c2b22;
-  --shadow:       0 8px 24px rgba(0,0,0,0.4);
-  --shadow-sm:    0 2px 4px rgba(0,0,0,0.2);
-}
+      --bg:           #0F1520;
+      --bg-card:      #172030;
+      --bg-subtle:    #0C1018;
+      --bg-input:     #172030;
+      --border:       #253550;
+      --border-focus: #4C8CE4;
+      --text:         #C8D8E8;
+      --text-muted:   #7090A8;
+      --text-light:   #405060;
+      --accent:       #4C8CE4;
+      --accent-2:     #91D06C;
+      --accent-green: #91D06C;
+      --accent-yellow:#FFF799;
+      --accent-hover: #3A72CC;
+      --accent-pale:  #1A2A40;
+      --accent-text:  #FFFFFF;
+      --danger:       #D06060;
+      --danger-pale:  #2E1818;
+      --warn:         #C8A840;
+      --warn-pale:    #2A2410;
+      --success-pale: #1A2E10;
+      --shadow:       0 2px 16px rgba(0,0,0,0.5);
+      --shadow-sm:    0 1px 6px rgba(0,0,0,0.3);
+    }
 
     /* ── BASE ────────────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; }
@@ -330,6 +336,54 @@
     .expiry-bar.warn   { background: var(--warn-pale);   border-left: 3px solid var(--warn);   color: var(--warn); }
     .expiry-bar.danger { background: var(--danger-pale); border-left: 3px solid var(--danger); color: var(--danger); }
 
+    /* ── EXPIRED SUBSCRIPTION BLUR OVERLAY ──────────────────────── */
+    .expired-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9000;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      background: rgba(10, 20, 40, 0.55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .expired-card {
+      background: var(--bg-card);
+      border: 2px solid var(--danger);
+      border-radius: var(--radius-lg);
+      padding: 40px 44px;
+      max-width: 460px;
+      width: calc(100% - 40px);
+      text-align: center;
+      box-shadow: 0 16px 64px rgba(0,0,0,0.4);
+    }
+    .expired-icon {
+      width: 64px; height: 64px;
+      background: var(--danger-pale);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 20px;
+    }
+    .expired-icon i { font-size: 30px; color: var(--danger); }
+    .expired-title { font-size: 1.25rem; font-weight: 800; color: var(--danger); margin-bottom: 10px; }
+    .expired-sub   { font-size: 0.88rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 24px; }
+    .expired-contact { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
+    .expired-contact a {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 14px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      text-decoration: none;
+      color: var(--text);
+      font-size: 0.84rem;
+      font-weight: 500;
+      transition: background 0.12s;
+    }
+    .expired-contact a:hover { background: var(--accent-pale); color: var(--accent); }
+    .expired-contact a i { font-size: 16px; color: var(--accent-2); flex-shrink: 0; }
+
     /* ── UTILS ───────────────────────────────────────────────────── */
     .mono {
       font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace;
@@ -347,7 +401,7 @@
 <nav class="topnav">
   <a class="brand" href="{{ url_for('index') }}">
     <div class="brand-box"><i class="ph-bold ph-sun"></i></div>
-    SolarDoc
+    <span class="d-none d-sm-inline">LibityInfotech</span><span class="d-none d-md-inline"> Solar Docs</span>
   </a>
 
   {% if session.user %}
@@ -362,17 +416,21 @@
          class="navlink {% if request.endpoint == 'admin_create_agency' %}active{% endif %}">
         <i class="ph ph-plus-circle"></i> New Agency
       </a>
+      <a href="{{ url_for('admin_export') }}"
+         class="navlink" title="Download Excel report">
+        <i class="ph ph-microsoft-excel-logo"></i> Export
+      </a>
     {% else %}
-      <a href="{{ url_for('agency_dashboard') }}"
-         class="navlink {% if request.endpoint == 'agency_dashboard' %}active{% endif %}">
+      <a href="{{ au('agency_dashboard') }}"
+         class="navlink {% if request.endpoint in ['agency_dashboard','slug_dashboard'] %}active{% endif %}">
         <i class="ph ph-house-simple"></i> Home
       </a>
-      <a href="{{ url_for('generate') }}"
-         class="navlink {% if request.endpoint == 'generate' %}active{% endif %}">
+      <a href="{{ au('generate') }}"
+         class="navlink {% if request.endpoint in ['generate','slug_generate'] %}active{% endif %}">
         <i class="ph ph-file-arrow-up"></i> Generate
       </a>
-      <a href="{{ url_for('history') }}"
-         class="navlink {% if request.endpoint in ['history','history_detail'] %}active{% endif %}">
+      <a href="{{ au('history') }}"
+         class="navlink {% if request.endpoint in ['history','history_detail','slug_history','slug_history_detail'] %}active{% endif %}">
         <i class="ph ph-clock-clockwise"></i> History
       </a>
     {% endif %}
@@ -437,6 +495,45 @@
       </div>
     </div>
   {% endif %}
+{% endif %}
+
+<!-- ── Expired subscription overlay — blurs everything, only logout ──── -->
+{% if session.user and session.user.role != 'admin' and session.user.days_left is defined and session.user.days_left <= 0 %}
+<div class="expired-overlay" id="expiredOverlay">
+  <div class="expired-card">
+    <div class="expired-icon"><i class="ph ph-lock-key"></i></div>
+    <div class="expired-title">Subscription Expired</div>
+    <div class="expired-sub">
+      Your subscription ended on <strong>{{ session.user.expires_at }}</strong>.<br>
+      Contact the administrator to renew and restore access.
+    </div>
+    {% set ci = contact_info if contact_info is defined else {} %}
+    {% if ci %}
+    <div class="expired-contact">
+      {% if ci.admin_phone %}
+      <a href="tel:{{ ci.admin_phone }}">
+        <i class="ph ph-phone"></i> {{ ci.admin_phone }}
+      </a>
+      {% endif %}
+      {% if ci.admin_whatsapp %}
+      <a href="https://wa.me/91{{ ci.admin_whatsapp | replace(' ','') | replace('-','') }}" target="_blank" rel="noopener"
+         style="background:#F0FBF0;border-color:#A8DCA0;color:#2D7A2D;">
+        <i class="ph ph-chats" style="color:#2E7D32;"></i>
+        WhatsApp — {{ ci.admin_whatsapp }}
+      </a>
+      {% endif %}
+      {% if ci.admin_email %}
+      <a href="mailto:{{ ci.admin_email }}">
+        <i class="ph ph-envelope"></i> {{ ci.admin_email }}
+      </a>
+      {% endif %}
+    </div>
+    {% endif %}
+    <a href="{{ url_for('logout') }}" class="btn btn-outline-danger w-100">
+      <i class="ph ph-sign-out me-1"></i> Logout
+    </a>
+  </div>
+</div>
 {% endif %}
 
 <!-- ── Content ────────────────────────────────────────────────────── -->
