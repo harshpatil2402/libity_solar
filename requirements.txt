@@ -1,10 +1,8 @@
-Flask
-python-dotenv
+flask
 supabase
-docxtpl
+weasyprint
 Pillow
-Werkzeug
-gunicorn
+python-dotenv
 requests
-flask-socketio
-eventlet
+openpyxl
+gunicorn
