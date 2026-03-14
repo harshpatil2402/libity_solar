@@ -726,9 +726,11 @@ document.addEventListener('DOMContentLoaded', function(){
       } catch(_) {}
     }
 
-    // Medium path — pre-fire running, just attach modal to it
+    // Medium path — pre-fire running, attach modal to it and stop quiet poll
     if (prefireJobId && prefireStatus === 'running') {
       aLog('Continuing background job ...');
+      // Stop the silent background poll — startPoll takes over from here
+      if (quietInterval) { clearInterval(quietInterval); quietInterval = null; }
       startPoll(prefireJobId);
       return;
     }

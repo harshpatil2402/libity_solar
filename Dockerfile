@@ -34,15 +34,20 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 
 COPY . /app/
 
+# Pin to 1 worker — overrides Render's WEB_CONCURRENCY auto-detection
+ENV WEB_CONCURRENCY=1
+
 EXPOSE 5000
 
-# WeasyPrint is in-process — no LibreOffice RAM spikes
-# Multiple workers are now safe: each WeasyPrint render uses ~50 MB peak
-# Timeout 60s is plenty — 5 PDFs via WeasyPrint take ~5-10s total
+# IMPORTANT: must be 1 worker — the jobs dict is in-process memory.
+# Multiple workers each have their own dict; a pre-fire on worker A
+# is invisible to worker B, causing 404s on status polls.
+# Use --threads for concurrency within the single worker instead.
 CMD ["gunicorn", \
      "--bind", "0.0.0.0:5000", \
-     "--workers", "2", \
-     "--threads", "4", \
-     "--timeout", "60", \
+     "--workers", "1", \
+     "--threads", "8", \
+     "--worker-class", "gthread", \
+     "--timeout", "120", \
      "--keep-alive", "5", \
      "app:app"]
