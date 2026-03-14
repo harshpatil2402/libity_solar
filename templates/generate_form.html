@@ -132,7 +132,7 @@
 <div class="d-flex align-items-center justify-content-between mb-4">
   <div>
     <h4 class="fw-bold mb-0">Generate Document Set</h4>
-    <p style="color:var(--text-muted);font-size:0.78rem;margin:3px 0 0;">Fill all sections and click Generate ZIP to produce your documents</p>
+    <p style="color:var(--text-muted);font-size:0.78rem;margin:3px 0 0;">Fill all sections — documents start preparing automatically. Click Generate PDFs to download.</p>
   </div>
   <a href="{{ au('agency_dashboard') }}" class="btn btn-outline-secondary btn-sm px-3">
     <i class="ph ph-arrow-left me-1"></i> Back
@@ -506,105 +506,248 @@ document.addEventListener('DOMContentLoaded', function(){
     const st = document.getElementById(cropTarget+'-status');
     st.innerHTML = '<i class="ph ph-check-circle" style="color:var(--accent);"></i> Image ready';
     cropModal.hide();
+    // Notify pre-fire checker that an image was just set
+    document.dispatchEvent(new CustomEvent('cropDone'));
   });
 
-  // ── Generation + polling at 500ms ──
-  const form    = document.getElementById('genForm');
-  const genBtn  = document.getElementById('genBtn');
-  const logBody = document.getElementById('logBody');
-  const dlLink  = document.getElementById('dlLink');
-  const dlNote  = document.getElementById('dlNote');
-  const closeBtn= document.getElementById('closeBtn');
-  const mSpinner= document.getElementById('mSpinner');
-  const mTitle  = document.getElementById('mTitle');
-  const logModal= new bootstrap.Modal(document.getElementById('logModal'));
-  let pollInt=null, logIdx=0;
+  // ── Generation + polling ──────────────────────────────────────────────────
+  const form     = document.getElementById('genForm');
+  const genBtn   = document.getElementById('genBtn');
+  const logBody  = document.getElementById('logBody');
+  const dlLink   = document.getElementById('dlLink');
+  const dlNote   = document.getElementById('dlNote');
+  const closeBtn = document.getElementById('closeBtn');
+  const mSpinner = document.getElementById('mSpinner');
+  const mTitle   = document.getElementById('mTitle');
+  const logModal = new bootstrap.Modal(document.getElementById('logModal'));
+  let pollInt = null, logIdx = 0;
 
-  function aLog(msg, err){
+  // ── Pre-fire state ────────────────────────────────────────────────────────
+  // Silently starts the job once all required fields + signature are filled.
+  // Any subsequent field edit CANCELS the in-flight job and schedules a fresh one.
+  let prefireJobId   = null;   // job_id of current background job
+  let prefireStatus  = 'idle'; // idle | preparing | running | ready | error
+  let prefireTimer   = null;   // debounce handle
+  let quietInterval  = null;   // background poll handle — must be cleared on reset
+
+  const prefireEl = document.createElement('div');
+  prefireEl.style.cssText = 'font-size:0.71rem;margin-top:5px;display:none;text-align:right;transition:color .3s;';
+  genBtn.parentElement.appendChild(prefireEl);
+
+  function setPrefireUI(state) {
+    prefireStatus = state;
+    const map = {
+      preparing: ['⏳ Preparing in background\u2026',         'var(--text-muted)'],
+      ready:     ['\u2705 Ready \u2014 download will be instant', 'var(--accent-green)'],
+      error:     ['\u26a0\ufe0f Pre-render failed \u2014 will retry on click', 'var(--warn)'],
+      idle:      ['', ''],
+    };
+    const [txt, col] = map[state] || ['', ''];
+    prefireEl.style.display = state === 'idle' ? 'none' : 'block';
+    prefireEl.style.color   = col;
+    prefireEl.textContent   = txt;
+    genBtn.style.boxShadow  = state === 'ready' ? '0 0 0 3px rgba(145,208,108,0.35)' : '';
+  }
+
+  // Fully cancel whatever pre-fire is in progress — called on any field edit
+  function cancelPrefire() {
+    clearTimeout(prefireTimer);
+    prefireTimer = null;
+    if (quietInterval) { clearInterval(quietInterval); quietInterval = null; }
+    prefireJobId  = null;
+    // Only reset UI if not already idle (avoids a flash on normal typing)
+    if (prefireStatus !== 'idle') setPrefireUI('idle');
+  }
+
+  function isFormComplete() {
+    const allReq = [...form.querySelectorAll('[required]')];
+    if (!allReq.every(el => el.value.trim())) return false;
+    const sig = document.getElementById('sig_b64');
+    return sig && sig.value;
+  }
+
+  async function prefireJob() {
+    // Guard: another invocation may have already started since the debounce fired
+    if (prefireStatus === 'preparing' || prefireStatus === 'running' || prefireStatus === 'ready') return;
+    if (!isFormComplete()) return;
+
+    // Snapshot form data at the moment pre-fire fires (not at click time)
+    const data = Object.fromEntries(new FormData(form).entries());
+
+    try {
+      setPrefireUI('preparing');
+      const res  = await fetch('/api/generate', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+      });
+      const json = await res.json();
+      if (!json.job_id) throw new Error(json.error || 'no job_id');
+
+      // Check we haven't been cancelled between the fetch and now
+      if (prefireStatus !== 'preparing') return; // user edited while request was in-flight
+
+      prefireJobId  = json.job_id;
+      setPrefireUI('running'); // set via setPrefireUI so prefireStatus is updated atomically
+
+      // Track the interval so cancelPrefire() can stop it
+      quietInterval = setInterval(async () => {
+        try {
+          // If we were cancelled, stop immediately
+          if (!prefireJobId || prefireStatus === 'idle') {
+            clearInterval(quietInterval); quietInterval = null; return;
+          }
+          const r = await fetch('/api/job/' + prefireJobId + '/status?since=0');
+          const d = await r.json();
+          if (d.status === 'done') {
+            clearInterval(quietInterval); quietInterval = null;
+            // Only show ready if this is still the current job (not cancelled)
+            if (prefireJobId === json.job_id) setPrefireUI('ready');
+          }
+          if (d.status === 'error') {
+            clearInterval(quietInterval); quietInterval = null;
+            if (prefireJobId === json.job_id) { prefireJobId = null; setPrefireUI('error'); }
+          }
+        } catch(_) {}
+      }, 700);
+
+    } catch(_) {
+      if (prefireStatus === 'preparing') { prefireJobId = null; setPrefireUI('error'); }
+    }
+  }
+
+  function schedulePrefireCheck() {
+    // ANY field change → cancel whatever is in flight and start fresh after debounce
+    cancelPrefire();
+    // Only re-schedule if the form still looks like it could become complete
+    clearTimeout(prefireTimer);
+    prefireTimer = setTimeout(prefireJob, 1200);
+  }
+
+  form.querySelectorAll('input, textarea, select').forEach(el => {
+    el.addEventListener('input',  schedulePrefireCheck);
+    el.addEventListener('change', schedulePrefireCheck);
+  });
+
+  // Also trigger when signature crop completes (value set via JS, not user input)
+  const _sig64 = document.getElementById('sig_b64');
+  if (_sig64) {
+    const _mo = new MutationObserver(schedulePrefireCheck);
+    _mo.observe(_sig64, { attributes: true, attributeFilter: ['value'] });
+    // Cropper sets .value directly — also hook the custom 'cropDone' event if present
+    document.addEventListener('cropDone', schedulePrefireCheck);
+  }
+
+  // ── Log helpers ───────────────────────────────────────────────────────────
+  function aLog(msg, err) {
     const l = document.createElement('span');
     let cls = 'inf';
-    if(err)                                                    cls = 'err';
-    else if(/Done:|ZIP ready|ready|Generating/i.test(msg))     cls = 'ok';
-    else if(/timeout|warn|missing/i.test(msg))                 cls = 'wrn';
-    l.className = 'll ' + cls;
+    if (err)                                                cls = 'err';
+    else if (/Done:|ZIP ready|ready|Generating/i.test(msg)) cls = 'ok';
+    else if (/timeout|warn|missing/i.test(msg))             cls = 'wrn';
+    l.className   = 'll ' + cls;
     l.textContent = '> ' + msg;
     logBody.appendChild(l);
     logBody.appendChild(document.createTextNode('\n'));
     logBody.scrollTop = logBody.scrollHeight;
   }
-  function stopPoll(){ if(pollInt){ clearInterval(pollInt); pollInt=null; } }
+  function stopPoll() { if (pollInt) { clearInterval(pollInt); pollInt = null; } }
 
-  // Called when the Download button is clicked — disable it and show note
-  function markDownloaded(){
-    setTimeout(function(){
-      dlLink.style.opacity = '0.45';
-      dlLink.style.pointerEvents = 'none';
-      dlLink.innerHTML = '<i class="ph ph-check me-1"></i> Downloaded';
-      dlNote.style.display = 'block';
+  function markDownloaded() {
+    setTimeout(() => {
+      dlLink.style.opacity      = '0.45';
+      dlLink.style.pointerEvents= 'none';
+      dlLink.innerHTML          = '<i class="ph ph-check me-1"></i> Downloaded';
+      dlNote.style.display      = 'block';
     }, 300);
   }
   window.markDownloaded = markDownloaded;
 
-  function startPoll(jid){
-    logIdx = 0;
-    pollInt = setInterval(async function(){
+  function showDone(url) {
+    stopPoll();
+    mSpinner.style.display = 'none';
+    mTitle.textContent     = 'Complete — documents ready.';
+    mTitle.style.color     = '#3fb950';
+    dlLink.href            = url;
+    dlLink.style.display   = 'inline-flex';
+    closeBtn.style.display = 'inline-block';
+    genBtn.disabled        = false;
+    genBtn.style.boxShadow = '';
+    genBtn.innerHTML       = '<i class="ph ph-file-arrow-up me-1"></i> Generate PDFs';
+    setPrefireUI('idle');
+    setTimeout(() => { window.location.href = url; markDownloaded(); }, 400);
+  }
+
+  function startPoll(jid) {
+    logIdx  = 0;
+    pollInt = setInterval(async () => {
       try {
-        const r = await fetch('/api/job/'+jid+'/status?since='+logIdx);
-        if(!r.ok) throw new Error('HTTP ' + r.status);
+        const r = await fetch('/api/job/' + jid + '/status?since=' + logIdx);
+        if (!r.ok) throw new Error('HTTP ' + r.status);
         const d = await r.json();
         d.logs.forEach(e => aLog(e.msg, e.error));
         logIdx += d.logs.length;
-        if(d.status === 'done'){
+        if (d.status === 'done')  showDone(d.download_url);
+        if (d.status === 'error') {
           stopPoll();
           mSpinner.style.display = 'none';
-          mTitle.textContent = 'Complete — documents ready.';
-          mTitle.style.color = '#3fb950';
-          // d.download_url is now /api/job/<jid>/download
-          dlLink.href = d.download_url;
-          dlLink.style.display = 'inline-flex';
+          mTitle.textContent     = 'Generation failed.';
+          mTitle.style.color     = '#f85149';
           closeBtn.style.display = 'inline-block';
-          genBtn.disabled = false;
-          genBtn.innerHTML = '<i class="ph ph-file-arrow-up me-1"></i> Generate ZIP';
-          // Auto-trigger download after short delay, then mark button used
-          setTimeout(function(){
-            window.location.href = d.download_url;
-            markDownloaded();
-          }, 400);
+          genBtn.disabled        = false;
+          genBtn.innerHTML       = '<i class="ph ph-file-arrow-up me-1"></i> Generate PDFs';
         }
-        if(d.status === 'error'){
-          stopPoll();
-          mSpinner.style.display = 'none';
-          mTitle.textContent = 'Generation failed.';
-          mTitle.style.color = '#f85149';
-          closeBtn.style.display = 'inline-block';
-          genBtn.disabled = false;
-          genBtn.innerHTML = '<i class="ph ph-file-arrow-up me-1"></i> Generate ZIP';
-        }
-      } catch(e){ aLog('Polling error: ' + e.message, true); }
+      } catch(e) { aLog('Polling error: ' + e.message, true); }
     }, 500);
   }
 
-  form.addEventListener('submit', async function(e){
+  // ── Generate button ───────────────────────────────────────────────────────
+  form.addEventListener('submit', async function(e) {
     e.preventDefault();
-    if(!form.checkValidity()){ form.reportValidity(); return; }
-    logBody.innerHTML = '';
-    dlLink.style.display = 'none'; closeBtn.style.display = 'none';
-    mSpinner.style.display = ''; mTitle.style.color = '#e6edf3';
-    mTitle.textContent = 'Generating Documents ...';
-    genBtn.disabled = true;
-    genBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generating...';
+    if (!form.checkValidity()) { form.reportValidity(); return; }
+
+    logBody.innerHTML      = '';
+    dlLink.style.display   = 'none';
+    closeBtn.style.display = 'none';
+    mSpinner.style.display = '';
+    mTitle.style.color     = '#e6edf3';
+    mTitle.textContent     = 'Generating Documents ...';
+    genBtn.disabled        = true;
+    genBtn.innerHTML       = '<span class="spinner-border spinner-border-sm me-2"></span>Generating...';
     logModal.show();
+
+    // Fast path — pre-fire already finished
+    if (prefireJobId && prefireStatus === 'ready') {
+      aLog('Documents prepared in background — fetching ...');
+      try {
+        const r = await fetch('/api/job/' + prefireJobId + '/status?since=0');
+        const d = await r.json();
+        if (d.status === 'done') { showDone(d.download_url); return; }
+        // bytes already consumed (re-click after download) — fall through
+      } catch(_) {}
+    }
+
+    // Medium path — pre-fire running, just attach modal to it
+    if (prefireJobId && prefireStatus === 'running') {
+      aLog('Continuing background job ...');
+      startPoll(prefireJobId);
+      return;
+    }
+
+    // Slow path — no pre-fire, start fresh
     aLog('Submitting job ...');
     const data = Object.fromEntries(new FormData(form).entries());
     try {
-      const res  = await fetch('/api/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
+      const res  = await fetch('/api/generate', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(data)
+      });
       const json = await res.json();
-      if(json.job_id){ aLog('Job started: ' + json.job_id.slice(0,8) + ' ...'); startPoll(json.job_id); }
+      if (json.job_id) { aLog('Job started: ' + json.job_id.slice(0,8) + ' ...'); startPoll(json.job_id); }
       else throw new Error(json.error || 'No job_id');
-    } catch(err){
+    } catch(err) {
       aLog(err.message, true);
-      genBtn.disabled = false;
-      genBtn.innerHTML = '<i class="ph ph-file-arrow-up me-1"></i> Generate ZIP';
+      genBtn.disabled  = false;
+      genBtn.innerHTML = '<i class="ph ph-file-arrow-up me-1"></i> Generate PDFs';
     }
   });
 
