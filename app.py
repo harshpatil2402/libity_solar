@@ -114,7 +114,15 @@ def upload_image(b64, bucket):
         return None
 
 def preload_templates():
-    """Load HTML templates into memory at startup."""
+    """Load HTML templates into memory at startup, stripping external font links."""
+    import re as _re
+    # Strip Google Fonts link tags — WeasyPrint would make a blocking network
+    # request for each one on every render. Stripping at load time means the
+    # cache is permanently clean and no network hit ever occurs.
+    _ext_link_re = _re.compile(
+        r'<link[^>]*(fonts\.googleapis\.com|fonts\.gstatic\.com)[^>]*>\s*',
+        _re.IGNORECASE
+    )
     html_names = [
         "commissioning_report.html",
         "meter_testing.html",
@@ -127,9 +135,10 @@ def preload_templates():
         path = os.path.join(HTML_DOCS_DIR, name)
         if os.path.exists(path):
             with open(path, 'r', encoding='utf-8') as f:
-                _HTML_CACHE[name] = f.read()
+                raw = f.read()
+            _HTML_CACHE[name] = _ext_link_re.sub('', raw)
             loaded += 1
-    print(f"[LibityInfotech] Preloaded {loaded}/{len(html_names)} HTML templates.")
+    print(f"[LibityInfotech] Preloaded {loaded}/{len(html_names)} HTML templates (fonts stripped).")
 
 # ── WeasyPrint PDF generation ─────────────────────────────────────────────────
 def fill_html_template(html: str, ctx: dict) -> str:
@@ -178,9 +187,19 @@ def run_job(jid, form_data, agency_id):
         profile    = supabase.table('agencies').select('*').eq('id', agency_id).single().execute().data
         sig_b64    = form_data.pop('sig_b64', None)
         aadhar_b64 = form_data.pop('aadhar_b64', None)
-        form_data.pop('format', None)   # always PDF now
+        form_data.pop('format', None)
 
-        # ── Process images in parallel ────────────────────────────
+        # ── Load Mahavitaran logo from disk as data URI ────────────
+        # WeasyPrint needs base_url=HTML_DOCS_DIR, but <img src="static/..."> resolves
+        # relative to that dir — which works only if static/ is inside input_docs/.
+        # Safest: embed as data URI so it always resolves regardless of base_url.
+        mahavitaran_uri = ''
+        maha_path = os.path.join(BASE_DIR, 'static', 'images', 'mahavitaran_logo.png')
+        if os.path.exists(maha_path):
+            with open(maha_path, 'rb') as _f:
+                mahavitaran_uri = f"data:image/png;base64,{base64.b64encode(_f.read()).decode()}"
+
+        # ── Process agency images in parallel ──────────────────────
         log("Processing images ...")
         results = [None] * 4
         def fetch(i, fn): results[i] = fn()
@@ -195,86 +214,83 @@ def run_job(jid, form_data, agency_id):
 
         sig_bytes, aadhar_bytes, logo_bytes, stamp_bytes = results
 
-        # Convert images to data URIs for inline HTML embedding
         def to_uri(b): return img_to_data_uri(b) if b else ''
 
-        # ── Context — every {{variable}} used across all 5 HTML templates ──
-        # New templates use direct form_data key names — no aliases needed.
         fd   = form_data
         inv  = fd.get('inverter_make_and_model', '')
-        # Split inverter make/model on first space for model_agreement
-        inv_parts  = inv.split(' ', 1) if inv else ['', '']
-        inv_make   = inv_parts[0]
-        inv_model  = inv_parts[1] if len(inv_parts) > 1 else inv
+        inv_parts = inv.split(' ', 1) if inv else ['', '']
+        inv_make  = inv_parts[0]
+        inv_model = inv_parts[1] if len(inv_parts) > 1 else inv
 
         ctx = {
             # ── Consumer ──────────────────────────────────────────
-            'consumer_name':           fd.get('consumer_name', ''),
-            'consumer_number':         fd.get('consumer_number', ''),
-            'consumer_contact_number': fd.get('consumer_contact_number', ''),
-            'consumer_email':          fd.get('consumer_email', ''),
-            'consumer_address':        fd.get('consumer_address', ''),
-            'consumer_aadhar_num':     fd.get('consumer_aadhar_num', ''),
-            'city':                    fd.get('city', ''),
+            'consumer_name':             fd.get('consumer_name', ''),
+            'consumer_number':           fd.get('consumer_number', ''),
+            'consumer_contact_number':   fd.get('consumer_contact_number', ''),
+            'consumer_email':            fd.get('consumer_email', ''),
+            'consumer_address':          fd.get('consumer_address', ''),
+            'consumer_aadhar_num':       fd.get('consumer_aadhar_num', ''),
+            'city':                      fd.get('city', ''),
             # ── Grid / Sanction ────────────────────────────────────
-            'discom_division':         fd.get('discom_division', ''),
-            'licensee_name':           fd.get('licensee_name', ''),
-            'sanction_number':         fd.get('sanction_number', ''),
-            'sanction_capacity_kw':    fd.get('sanction_capacity_kw', ''),
-            'system_capacity_kw':      fd.get('system_capacity_kw', ''),
-            'agreement_solar_price':   fd.get('agreement_solar_price', ''),
+            'discom_division':           fd.get('discom_division', ''),
+            'licensee_name':             fd.get('licensee_name', ''),
+            'sanction_number':           fd.get('sanction_number', ''),
+            'sanction_capacity_kw':      fd.get('sanction_capacity_kw', ''),
+            'system_capacity_kw':        fd.get('system_capacity_kw', ''),
+            'agreement_solar_price':     fd.get('agreement_solar_price', ''),
             # ── Modules ────────────────────────────────────────────
-            'module_make':             fd.get('module_make', ''),
-            'almm_model_number':       fd.get('almm_model_number', ''),
-            'module_efficiency':       fd.get('module_efficiency', ''),
-            'module_capacity_wp':      fd.get('module_capacity_wp', ''),
-            'num_pv_modules':          fd.get('num_pv_modules', ''),
+            'module_make':               fd.get('module_make', ''),
+            'almm_model_number':         fd.get('almm_model_number', ''),
+            'module_efficiency':         fd.get('module_efficiency', ''),
+            'module_capacity_wp':        fd.get('module_capacity_wp', ''),
+            'num_pv_modules':            fd.get('num_pv_modules', ''),
             'total_module_capacity_kwp': fd.get('total_module_capacity_kwp', ''),
             # ── Inverter ───────────────────────────────────────────
-            'inverter_make_and_model': inv,
-            'inverter_make':           inv_make,   # model_agreement uses split fields
-            'inverter_model':          inv_model,
-            'inverter_capacity_kw':    fd.get('inverter_capacity_kw', ''),
-            'inverter_rating_text':    fd.get('inverter_rating_text', ''),
+            'inverter_make_and_model':   inv,
+            'inverter_make':             inv_make,
+            'inverter_model':            inv_model,
+            'inverter_capacity_kw':      fd.get('inverter_capacity_kw', ''),
+            'inverter_rating_text':      fd.get('inverter_rating_text', ''),
             # ── Dates ──────────────────────────────────────────────
-            'agreement_date':          fd.get('agreement_date', ''),
-            'annexure_agreement_date': fd.get('annexure_agreement_date', ''),
-            'installation_date':       fd.get('installation_date', ''),
-            'meter_testing_date':      fd.get('meter_testing_date', ''),
-            'performance_check_date':  fd.get('performance_check_date', ''),
-            'today_date':              datetime.now().strftime('%d-%m-%Y'),
-            # ── Agency (from profile) ──────────────────────────────
-            'agency_name':             profile.get('agency_name', ''),
-            'agency_address':          profile.get('agency_address', ''),
-            'agency_contact':          profile.get('contact_number', ''),
-            'agency_director':         profile.get('director_name', ''),
-            # ── Images ────────────────────────────────────────────
-            # Signature / Aadhar / Stamp → <img> tags (replace placeholder divs)
-            'consumer_signature_image': f'<img src="{to_uri(sig_bytes)}" style="width:100%;height:100%;object-fit:contain;display:block;">' if sig_bytes else '',
-            'consumer_aadhar_image':    f'<img src="{to_uri(aadhar_bytes)}" style="width:100%;height:100%;object-fit:contain;display:block;">' if aadhar_bytes else '',
-            'agency_stamp_image':       f'<img src="{to_uri(stamp_bytes)}" style="width:100%;height:100%;object-fit:contain;display:block;">' if stamp_bytes else '',
-            # agency_logo used as raw src="..." in meter_testing header <img>
-            'agency_logo':              to_uri(logo_bytes) if logo_bytes else '',
+            'agreement_date':            fd.get('agreement_date', ''),
+            'annexure_agreement_date':   fd.get('annexure_agreement_date', ''),
+            'installation_date':         fd.get('installation_date', ''),
+            'meter_testing_date':        fd.get('meter_testing_date', ''),
+            'performance_check_date':    fd.get('performance_check_date', ''),
+            'today_date':                datetime.now().strftime('%d-%m-%Y'),
+            # ── Agency ─────────────────────────────────────────────
+            'agency_name':               profile.get('agency_name', ''),
+            'agency_address':            profile.get('agency_address', ''),
+            'agency_contact':            profile.get('contact_number', ''),
+            'agency_director':           profile.get('director_name', ''),
+            # ── Images (all as data URIs — no filesystem dependency) ──
+            'mahavitaran_logo':          mahavitaran_uri,
+            'consumer_signature_image':  f'<img src="{to_uri(sig_bytes)}" style="width:100%;height:100%;object-fit:contain;display:block;">' if sig_bytes else '',
+            'consumer_aadhar_image':     f'<img src="{to_uri(aadhar_bytes)}" style="width:100%;height:100%;object-fit:contain;display:block;">' if aadhar_bytes else '',
+            'agency_stamp_image':        f'<img src="{to_uri(stamp_bytes)}" style="width:100%;height:100%;object-fit:contain;display:block;">' if stamp_bytes else '',
+            'agency_logo':               to_uri(logo_bytes) if logo_bytes else '',
         }
 
         docs = [
-            ("commissioning_report.html",   "1_Commissioning_Report"),
-            ("meter_testing.html",           "2_Meter_Testing"),
-            ("model_agreement.html",         "3_Model_Agreement"),
-            ("net_metering_agreement.html",  "4_Net_Metering"),
-            ("work_completion_report.html",  "5_Work_Completion"),
+            ("commissioning_report.html",  "1_Commissioning_Report"),
+            ("meter_testing.html",          "2_Meter_Testing"),
+            ("model_agreement.html",        "3_Model_Agreement"),
+            ("net_metering_agreement.html", "4_Net_Metering"),
+            ("work_completion_report.html", "5_Work_Completion"),
         ]
 
-        # ── Render all 5 PDFs sequentially ───────────────────────
-        # WeasyPrint shares a font/CSS engine — running it in threads
-        # causes lock contention and is actually ~2× SLOWER than sequential.
-        # Sequential: ~4-5 s total. Threads: ~9 s. Don't thread this.
+        # ── Sequential PDF rendering ───────────────────────────────
+        # On 512 MB RAM (WSL/low-spec): parallel WeasyPrint workers each
+        # load ~120 MB of font/CSS engine → 5 × 120 MB = OOM.
+        # Sequential keeps peak RAM ~150 MB total.
+        # Google Fonts links are already stripped from _HTML_CACHE at
+        # startup so no blocking network requests happen here.
         log("Generating PDFs ...")
         pdf_results = []
         for fname, oname in docs:
             pdf_results.append(render_pdf(fname, oname, ctx, jid))
 
-        # ── ZIP in memory ─────────────────────────────────────────
+        # ── ZIP in memory ──────────────────────────────────────────
         log("Building ZIP ...")
         cn    = fd.get('consumer_name', 'Client').replace(' ', '_')
         cno   = fd.get('consumer_number', '0000')
@@ -603,96 +619,102 @@ def admin_dashboard():
 @login_required
 @admin_required
 def admin_export():
-    """
-    Download an Excel file with:
-    - Sheet 1: Subscription report (agency, plan dates, renewal history)
-    - Sheet 2: Monthly document generation counts per agency
-    """
+    from_date     = request.args.get('from_date', '').strip()
+    to_date       = request.args.get('to_date', '').strip()
+    export_status = request.args.get('export_status', 'all')
+    cols_req      = request.args.getlist('cols') or [
+        'agency_name','director_name','contact_number','email','username',
+        'created_at','expires_at','days_left','total_docs'
+    ]
+
     try:
         agencies = supabase.table('agencies').select('*').neq('role', 'admin').execute().data or []
-        history  = supabase.table('generation_history').select(
-            'agency_id,created_at').execute().data or []
+        history  = supabase.table('generation_history').select('agency_id,created_at').execute().data or []
     except Exception as e:
         flash(f"Export failed: {e}", "danger")
         return redirect(url_for('admin_dashboard'))
 
-    # Build agency lookup
-    agency_map = {a['id']: a for a in agencies}
+    # Filter agencies by creation date if set
+    if from_date:
+        agencies = [a for a in agencies if (a.get('created_at') or '') >= from_date]
+    if to_date:
+        to_end = to_date + 'T23:59:59'
+        agencies = [a for a in agencies if (a.get('created_at') or '') <= to_end]
 
-    # Count docs per agency per month
+    # Filter by status
+    for a in agencies:
+        a['days_left'] = days_left(a.get('expires_at')) or 0
+    if export_status == 'active':
+        agencies = [a for a in agencies if a['days_left'] > 0]
+    elif export_status == 'expired':
+        agencies = [a for a in agencies if a['days_left'] <= 0]
+
+    # Doc counts
     from collections import defaultdict
     monthly = defaultdict(lambda: defaultdict(int))
     for row in history:
         aid = row.get('agency_id')
         if aid and row.get('created_at'):
-            mo = row['created_at'][:7]   # "2025-03"
-            monthly[aid][mo] += 1
+            monthly[aid][row['created_at'][:7]] += 1
 
-    # All months present in history
     all_months = sorted({row['created_at'][:7] for row in history if row.get('created_at')})
 
     wb = openpyxl.Workbook()
-
-    # ── Sheet 1: Subscription report ──
     ws1 = wb.active
-    ws1.title = "Subscriptions"
+    ws1.title = "Agencies"
 
-    hdr_fill   = PatternFill("solid", fgColor="406093")
-    hdr_font   = Font(bold=True, color="FFFFFF", size=11)
-    alt_fill   = PatternFill("solid", fgColor="D6E4F0")
-    center     = Alignment(horizontal="center", vertical="center")
-    thin_side  = Side(style="thin", color="AAAAAA")
+    hdr_fill    = PatternFill("solid", fgColor="406093")
+    hdr_font    = Font(bold=True, color="FFFFFF", size=11)
+    alt_fill    = PatternFill("solid", fgColor="D6E4F0")
+    center      = Alignment(horizontal="center", vertical="center")
+    thin_side   = Side(style="thin", color="AAAAAA")
     thin_border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
 
-    headers1 = ["Agency Name", "Director", "Contact", "Username", "Email",
-                "Subscription Start", "Subscription End", "Days Remaining", "Status",
-                "Total Docs Generated"]
-    for col, h in enumerate(headers1, 1):
-        cell = ws1.cell(row=1, column=col, value=h)
+    # Column map — label, width, extractor
+    ALL_COLS = {
+        'agency_name':    ("Agency Name",          28, lambda a, _: a.get('agency_name','')),
+        'director_name':  ("Director Name",         22, lambda a, _: a.get('director_name','')),
+        'contact_number': ("Contact Number",         16, lambda a, _: a.get('contact_number','')),
+        'email':          ("Email",                  28, lambda a, _: a.get('email','')),
+        'username':       ("Username",               18, lambda a, _: a.get('username','')),
+        'created_at':     ("Account Created On",     22, lambda a, _: (a.get('created_at') or '')[:10]),
+        'expires_at':     ("Subscription Expiry",    20, lambda a, _: a.get('expires_at','')),
+        'days_left':      ("Days Remaining",          16, lambda a, _: a.get('days_left', 0)),
+        'total_docs':     ("Total Docs Generated",   18, lambda a, m: sum(m.get(a['id'], {}).values())),
+    }
+    active_cols = [(k, *ALL_COLS[k]) for k in cols_req if k in ALL_COLS]
+
+    # Header row
+    for col_i, (_, label, width, _fn) in enumerate(active_cols, 1):
+        cell = ws1.cell(row=1, column=col_i, value=label)
         cell.fill = hdr_fill; cell.font = hdr_font
         cell.alignment = center; cell.border = thin_border
-
-    col_widths1 = [28, 22, 16, 18, 28, 20, 20, 16, 12, 18]
-    for i, w in enumerate(col_widths1, 1):
-        ws1.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+        ws1.column_dimensions[openpyxl.utils.get_column_letter(col_i)].width = width
     ws1.row_dimensions[1].height = 22
 
+    # Data rows
     for row_i, a in enumerate(agencies, 2):
-        dl = days_left(a.get('expires_at') or '') or 0
-        status_str = "Active" if dl > 0 else "Expired"
-        total_docs_a = sum(monthly.get(a['id'], {}).values())
-        row_data = [
-            a.get('agency_name', ''),
-            a.get('director_name', ''),
-            a.get('contact_number', ''),
-            a.get('username', ''),
-            a.get('email', ''),
-            '',   # start date not tracked separately — leave blank
-            a.get('expires_at', ''),
-            dl,
-            status_str,
-            total_docs_a,
-        ]
+        dl = a.get('days_left', 0)
         fill = alt_fill if row_i % 2 == 0 else PatternFill("solid", fgColor="FFFFFF")
-        status_color = "91D06C" if dl > 0 else "FF6B6B"
-        for col_i, val in enumerate(row_data, 1):
+        for col_i, (key, _label, _w, extractor) in enumerate(active_cols, 1):
+            val  = extractor(a, monthly)
             cell = ws1.cell(row=row_i, column=col_i, value=val)
             cell.border = thin_border
             cell.alignment = Alignment(vertical="center")
-            if col_i != 9:
-                cell.fill = fill
+            if key == 'days_left':
+                color = "91D06C" if dl > 30 else ("FFA500" if dl > 0 else "FF6B6B")
+                cell.fill = PatternFill("solid", fgColor=color)
+                cell.font = Font(bold=True)
             else:
-                cell.fill = PatternFill("solid", fgColor=status_color)
-                cell.font = Font(bold=True, color="FFFFFF")
+                cell.fill = fill
 
-    # ── Sheet 2: Monthly doc counts ──
+    # Sheet 2: Monthly usage
     ws2 = wb.create_sheet("Monthly Usage")
     months_header = ["Agency Name"] + all_months
     for col, h in enumerate(months_header, 1):
         cell = ws2.cell(row=1, column=col, value=h)
         cell.fill = hdr_fill; cell.font = hdr_font
         cell.alignment = center; cell.border = thin_border
-
     ws2.column_dimensions["A"].width = 28
     for i in range(2, len(months_header) + 1):
         ws2.column_dimensions[openpyxl.utils.get_column_letter(i)].width = 14
@@ -700,31 +722,55 @@ def admin_export():
 
     for row_i, a in enumerate(agencies, 2):
         fill = alt_fill if row_i % 2 == 0 else PatternFill("solid", fgColor="FFFFFF")
-        ws2.cell(row=row_i, column=1, value=a.get('agency_name', '')).fill = fill
-        ws2.cell(row=row_i, column=1).border = thin_border
+        c = ws2.cell(row=row_i, column=1, value=a.get('agency_name', ''))
+        c.fill = fill; c.border = thin_border
         for col_i, mo in enumerate(all_months, 2):
             count = monthly.get(a['id'], {}).get(mo, 0)
-            cell = ws2.cell(row=row_i, column=col_i, value=count if count else '')
+            cell  = ws2.cell(row=row_i, column=col_i, value=count if count else '')
             cell.alignment = center; cell.border = thin_border
-            if count:
-                cell.fill = PatternFill("solid", fgColor="FFF799")
-            else:
-                cell.fill = fill
+            cell.fill = PatternFill("solid", fgColor="FFF799") if count else fill
 
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
     fname = f"LibityInfotech_Report_{datetime.now().strftime('%Y-%m-%d')}.xlsx"
-    return send_file(buf, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                     as_attachment=True, download_name=fname)
+    return send_file(buf,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True, download_name=fname)
 
 # ── Admin: create ─────────────────────────────────────────────────────────────
+def _calc_expiry(form) -> str:
+    """
+    Calculate expiry date from form fields.
+    Priority: custom_expires_at > subscription_months (float, supports 0.27 = 8 days).
+    """
+    custom_date = form.get('custom_expires_at', '').strip()
+    if custom_date:
+        try:
+            datetime.strptime(custom_date, '%Y-%m-%d')  # validate
+            return custom_date
+        except ValueError:
+            pass
+
+    raw_months = form.get('subscription_months', '12')
+    try:
+        months = float(raw_months)
+    except (ValueError, TypeError):
+        months = 12.0
+
+    if months == 0.27:                          # 8-day demo shortcut
+        return (datetime.now() + timedelta(days=8)).strftime('%Y-%m-%d')
+
+    days = int(round(months * 30.44))           # accurate month→day conversion
+    return (datetime.now() + timedelta(days=days)).strftime('%Y-%m-%d')
+
+
 @app.route('/admin/agency/new', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def admin_create_agency():
     if request.method == 'POST':
-        months = int(request.form.get('subscription_months', 12))
+        expires_at = _calc_expiry(request.form)
         data = {
             "username":       request.form.get('username'),
             "email":          request.form.get('email'),
@@ -734,7 +780,7 @@ def admin_create_agency():
             "contact_number": request.form.get('contact_number'),
             "agency_address": request.form.get('agency_address'),
             "role":           "agency",
-            "expires_at":     (datetime.now() + timedelta(days=months * 30)).strftime('%Y-%m-%d'),
+            "expires_at":     expires_at,
         }
         logo_url  = upload_image(request.form.get('logo_base64'),  'agency-logos')
         stamp_url = upload_image(request.form.get('stamp_base64'), 'agency-stamps')
@@ -742,7 +788,7 @@ def admin_create_agency():
         if stamp_url: data['stamp_url'] = stamp_url
         try:
             supabase.table('agencies').insert(data).execute()
-            flash(f"Agency '{data['agency_name']}' created — active for {months} months.", "success")
+            flash(f"Agency '{data['agency_name']}' created — expires {expires_at}.", "success")
             return redirect(url_for('admin_dashboard'))
         except Exception as e:
             flash(f"Error: {e}", "danger")
@@ -787,11 +833,38 @@ def admin_edit_agency(agency_id):
 @login_required
 @admin_required
 def renew_agency(id):
-    months  = int(request.form.get('renewal_months', 12))
-    row     = supabase.table('agencies').select('expires_at').eq('id', id).single().execute().data
-    base    = datetime.strptime(row['expires_at'], '%Y-%m-%d') if row.get('expires_at') else datetime.now()
-    if base < datetime.now(): base = datetime.now()
-    new_exp = (base + timedelta(days=months * 30)).strftime('%Y-%m-%d')
+    # Custom exact date takes priority
+    custom_date = request.form.get('custom_renewal_date', '').strip()
+    if custom_date:
+        try:
+            datetime.strptime(custom_date, '%Y-%m-%d')
+            new_exp = custom_date
+        except ValueError:
+            custom_date = ''
+
+    if not custom_date:
+        raw = request.form.get('renewal_months', '12')
+        try:
+            months = float(raw)
+        except (ValueError, TypeError):
+            months = 12.0
+
+        row  = supabase.table('agencies').select('expires_at').eq('id', id).single().execute().data
+        base = datetime.now()
+        if row.get('expires_at'):
+            try:
+                parsed = datetime.strptime(row['expires_at'], '%Y-%m-%d')
+                if parsed > base:
+                    base = parsed           # extend from current expiry if still active
+            except ValueError:
+                pass
+
+        if months == 0.27:                  # 8-day demo
+            new_exp = (base + timedelta(days=8)).strftime('%Y-%m-%d')
+        else:
+            days = int(round(months * 30.44))
+            new_exp = (base + timedelta(days=days)).strftime('%Y-%m-%d')
+
     supabase.table('agencies').update({'expires_at': new_exp}).eq('id', id).execute()
     flash(f"Renewed. New expiry: {new_exp}", "success")
     return redirect(url_for('admin_dashboard',

@@ -464,49 +464,72 @@ document.addEventListener('DOMContentLoaded', function(){
   wpI.addEventListener('input', calc);
   nmI.addEventListener('input', calc);
 
-  // ── Cropper — aspect ratio locked per image type ──
-  // Ratios match document image dimensions:
-  //   sig    4.5×1.5 cm  → 3.000
-  //   aadhar 11×7 cm     → 1.571
-  //   stamp  6.5×2.5 cm  → 2.600   (used in admin_agency_form)
-  //   logo   4.5×4.5 cm  → 1.000   (used in admin_agency_form)
-  let cropper=null, cropTarget=null, cropRatio=NaN;
-  const cropImg = document.getElementById('cropImg');
-  const cropModalEl = document.getElementById('cropModal');
-  const cropModal = new bootstrap.Modal(cropModalEl);
+  // ── Cropper — lazy init, aspect ratio locked per image type ──
+  let cropper    = null;
+  let cropTarget = null;
+  let cropRatio  = NaN;
+  let cropModal  = null;   // initialised lazily on first use
 
-  document.querySelectorAll('.crop-input').forEach(function(el){
-    el.addEventListener('change', function(e){
-      const f = e.target.files?.[0];
-      if(!f) return;
-      if(f.size > 5*1024*1024){ alert('Max 5 MB.'); e.target.value=''; return; }
+  const cropImg     = document.getElementById('cropImg');
+  const cropModalEl = document.getElementById('cropModal');
+
+  function getCropModal() {
+    if (!cropModal) {
+      cropModal = new bootstrap.Modal(cropModalEl, { backdrop: 'static', keyboard: false });
+    }
+    return cropModal;
+  }
+
+  document.querySelectorAll('.crop-input').forEach(function(el) {
+    el.addEventListener('change', function(e) {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      if (f.size > 5 * 1024 * 1024) { alert('Max file size is 5 MB.'); e.target.value = ''; return; }
       cropTarget = e.target.dataset.target;
       cropRatio  = parseFloat(e.target.dataset.ratio) || NaN;
-      const r = new FileReader();
-      r.onload = ev => { cropImg.src = ev.target.result; cropModal.show(); };
-      r.readAsDataURL(f);
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        cropImg.src = ev.target.result;
+        getCropModal().show();
+      };
+      reader.readAsDataURL(f);
     });
   });
-  cropModalEl.addEventListener('shown.bs.modal', function(){
+
+  cropModalEl.addEventListener('shown.bs.modal', function() {
+    if (cropper) { cropper.destroy(); cropper = null; }
     cropper = new Cropper(cropImg, {
-      aspectRatio: cropRatio,   // locked — e.g. 3 for signature, 1.5714 for aadhar
-      viewMode: 1,
-      guides: true,
-      highlight: false,
+      aspectRatio:  cropRatio,
+      viewMode:     1,
+      guides:       true,
+      highlight:    false,
       autoCropArea: 0.95,
+      responsive:   true,
     });
   });
-  cropModalEl.addEventListener('hidden.bs.modal', function(){ if(cropper){ cropper.destroy(); cropper=null; } });
-  document.getElementById('cropBtn').addEventListener('click', function(){
-    if(!cropper) return;
-    const b64 = cropper.getCroppedCanvas({ maxWidth: 1400 }).toDataURL('image/jpeg', 0.92);
-    document.getElementById(cropTarget+'_b64').value = b64;
-    const pr = document.getElementById(cropTarget+'-preview');
-    pr.src = b64; pr.style.display = 'block';
-    const st = document.getElementById(cropTarget+'-status');
-    st.innerHTML = '<i class="ph ph-check-circle" style="color:var(--accent);"></i> Image ready';
-    cropModal.hide();
-    // Notify pre-fire checker that an image was just set
+
+  cropModalEl.addEventListener('hidden.bs.modal', function() {
+    if (cropper) { cropper.destroy(); cropper = null; }
+  });
+
+  document.getElementById('cropBtn').addEventListener('click', function() {
+    if (!cropper) return;
+    const canvas = cropper.getCroppedCanvas({ maxWidth: 1400, imageSmoothingQuality: 'high' });
+    const b64    = canvas.toDataURL('image/jpeg', 0.92);
+
+    // Write into hidden field
+    const hiddenField = document.getElementById(cropTarget + '_b64');
+    if (hiddenField) hiddenField.value = b64;
+
+    // Show preview
+    const pr = document.getElementById(cropTarget + '-preview');
+    if (pr) { pr.src = b64; pr.style.display = 'block'; }
+
+    // Update status label
+    const st = document.getElementById(cropTarget + '-status');
+    if (st) st.innerHTML = '<i class="ph ph-check-circle" style="color:var(--accent);"></i> Image ready';
+
+    getCropModal().hide();
     document.dispatchEvent(new CustomEvent('cropDone'));
   });
 

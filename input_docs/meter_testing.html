@@ -4,184 +4,287 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Net Meter Testing Letter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #000; background: #fff; }
+
+  body {
+    font-family: 'Source Sans 3', Arial, sans-serif;
+    font-size: 11pt;
+    color: #000;
+    background: #fff;
+  }
 
   @media screen {
-    body { background: #e0e0e0; padding: 20px; }
+    body { background: #d8d8d8; padding: 24px; }
     .page {
-      width: 216mm; height: 279mm; background: #fff;
-      margin: 0 auto 30px auto;
-      padding: 32mm 20mm 26mm 20mm;
+      width: 216mm;
+      height: 279mm;
+      background: #fff;
+      margin: 0 auto 32px auto;
+      padding: 33mm 20mm 27mm 20mm;
       position: relative;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+      box-shadow: 0 6px 24px rgba(0,0,0,0.22);
       overflow: hidden;
     }
   }
+
   @media print {
     body { background: #fff; }
     .page {
-      width: 216mm; height: 279mm;
-      padding: 32mm 20mm 26mm 20mm;
-      page-break-after: always; position: relative; overflow: hidden;
+      width: 216mm;
+      height: 279mm;
+      padding: 33mm 20mm 27mm 20mm;
+      page-break-after: always;
+      position: relative;
+      overflow: hidden;
     }
     .page:last-child { page-break-after: auto; }
   }
+
   @page { size: Letter portrait; margin: 0; }
 
-  /* ── Header: logo (1x1 square) + agency name — strictly one line ── */
+  /* ── Header ── */
   .page-header {
     position: absolute;
     top: 0; left: 0; right: 0;
-    height: 30mm;
+    height: 31mm;
     padding: 0 20mm;
     display: flex;
     flex-direction: row;
     align-items: center;
     gap: 10px;
+    background: #fff;
   }
   .page-header::after {
     content: '';
     position: absolute;
     bottom: 0;
     left: 5%; right: 5%;
-    height: 1.5px;
+    height: 2px;
     background: #000;
   }
   .header-logo-box {
-    width: 20mm;
-    height: 20mm;
+    width: 16mm;
+    height: 16mm;
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
   }
   .header-logo-box img {
-    width: 20mm;
-    height: 20mm;
+    width: 16mm;
+    height: 16mm;
     object-fit: contain;
     display: block;
   }
   .header-agency-name {
-    font-size: 20pt;
-    font-weight: bold;
-    color: #444;
-    line-height: 1;
+    font-family: 'Libre Baskerville', serif;
+    font-size: 16pt;
+    font-weight: 700;
+    color: #111;
+    line-height: 1.15;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow: visible;
+    letter-spacing: -0.02em;
+    flex: 1;
+    min-width: 0;
   }
 
   /* ── Footer ── */
   .page-footer {
     position: absolute;
     bottom: 0; left: 0; right: 0;
-    padding: 2mm 0 4mm 0;
+    padding: 2mm 0 5mm 0;
     text-align: center;
+    background: #fff;
   }
   .page-footer::before {
     content: '';
     display: block;
-    height: 1.5px;
+    height: 2px;
     background: #000;
     width: 90%;
-    margin: 0 auto 2mm auto;
+    margin: 0 auto 2.5mm auto;
   }
-  .footer-agency-name { font-size: 13pt; font-weight: bold; color: #000; margin-bottom: 2px; }
-  .footer-address      { font-size: 10pt; color: #000; margin-bottom: 1px; }
-  .footer-contact      { font-size: 10pt; color: #000; }
-  .footer-contact span { font-weight: bold; }
+  .footer-agency-name {
+    font-family: 'Libre Baskerville', serif;
+    font-size: 12.5pt;
+    font-weight: 700;
+    color: #000;
+    margin-bottom: 2px;
+    letter-spacing: 0.01em;
+  }
+  .footer-address {
+    font-family: 'Source Sans 3', sans-serif;
+    font-size: 9.5pt;
+    color: #111;
+    margin-bottom: 1px;
+  }
+  .footer-contact {
+    font-family: 'Source Sans 3', sans-serif;
+    font-size: 9.5pt;
+    color: #111;
+  }
+  .footer-contact span { font-weight: 700; }
 
-  /* ── Body ── */
-  .date-line    { text-align: right; font-size: 11pt; margin-bottom: 6px; }
-  .to-block     { font-size: 11pt; margin-bottom: 6px; line-height: 1.7; }
-  .subject-line { font-size: 11pt; font-weight: bold; text-decoration: underline; margin-bottom: 6px; line-height: 1.4; }
-  .body-text    { font-size: 11pt; line-height: 1.5; margin-bottom: 4px; }
+  /* ── Body typography ── */
+  .ph {
+    font-family: 'Libre Baskerville', serif;
+    font-weight: 700;
+    
+  }
 
-  table.detail-table { width: 100%; border-collapse: collapse; font-size: 9.5pt; margin: 6px 0; }
-  table.detail-table th { border: 1px solid #000; padding: 3px 4px; text-align: center; font-weight: bold; vertical-align: middle; background: #f2f2f2; }
-  table.detail-table td { border: 1px solid #000; padding: 3px 4px; vertical-align: top; }
+  .date-line {
+    text-align: right;
+    font-size: 11pt;
+    font-weight: 600;
+    margin-bottom: 8px;
+    font-family: 'Source Sans 3', sans-serif;
+  }
+  .to-block {
+    font-size: 11pt;
+    margin-bottom: 8px;
+    line-height: 1.75;
+    font-family: 'Source Sans 3', sans-serif;
+  }
+  .subject-line {
+    font-family: 'Libre Baskerville', serif;
+    font-size: 10.5pt;
+    font-weight: 700;
+    text-decoration: underline;
+    margin-bottom: 8px;
+    line-height: 1.5;
+  }
+  .body-text {
+    font-family: 'Source Sans 3', sans-serif;
+    font-size: 11pt;
+    line-height: 1.6;
+    margin-bottom: 5px;
+  }
+
+  /* ── Detail table ── */
+  table.detail-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Source Sans 3', sans-serif;
+    font-size: 9.2pt;
+    margin: 7px 0;
+  }
+  table.detail-table th {
+    border: 1px solid #000;
+    padding: 3.5px 5px;
+    text-align: center;
+    font-weight: 700;
+    vertical-align: middle;
+    background: #e8e8e8;
+    font-size: 9pt;
+  }
+  table.detail-table td {
+    border: 1px solid #000;
+    padding: 3.5px 5px;
+    vertical-align: top;
+  }
   .tc { text-align: center; }
-  .tb { font-weight: bold; }
+  .tb { font-weight: 700; }
 
-  .ref-line   { font-size: 10pt; margin: 5px 0; }
-  .yours-line { font-size: 11pt; text-align: right; margin: 5px 0 4px 0; }
+  /* ── Sign / stamp ── */
+  .ref-line {
+    font-family: 'Source Sans 3', sans-serif;
+    font-size: 9.8pt;
+    margin: 6px 0;
+  }
+  .yours-line {
+    font-family: 'Source Sans 3', sans-serif;
+    font-size: 11pt;
+    font-weight: 600;
+    text-align: right;
+    margin: 7px 0 5px 0;
+  }
   .stamp-block { text-align: right; }
-  .img-stamp   { display: inline-block; width: 60mm; height: 28mm; border: 1px dashed #999; vertical-align: bottom; }
-
-  .ph { font-weight: bold; }
+  .img-stamp {
+    display: inline-block;
+    width: 62mm;
+    height: 29mm;
+    border: 1px dashed #888;
+    vertical-align: bottom;
+    background: #fafafa;
+  }
 </style>
 </head>
 <body>
 <div class="page">
 
-  <!-- Header: 20x20mm logo + agency name on a single line -->
+  <!-- Header -->
   <div class="page-header">
     <div class="header-logo-box">
       <img src="{{agency_logo}}" alt="Agency Logo">
     </div>
-    <div class="header-agency-name"><strong class="ph">{{agency_name}}</strong></div>
+    <div class="header-agency-name"><span class="ph">{{agency_name}}</span></div>
   </div>
 
   <!-- Footer -->
   <div class="page-footer">
-    <div class="footer-agency-name"><strong class="ph">{{agency_name}}</strong></div>
-    <div class="footer-address"><strong class="ph">{{agency_address}}</strong></div>
-    <div class="footer-contact">Contact no:- <span><strong class="ph">{{agency_contact}}</strong></span></div>
+    <div class="footer-agency-name"><span class="ph">{{agency_name}}</span></div>
+    <div class="footer-address"><span class="ph">{{agency_address}}</span></div>
+    <div class="footer-contact">Contact No.:&nbsp;<span><span class="ph">{{agency_contact}}</span></span></div>
   </div>
 
   <!-- Body -->
-  <div class="date-line">Date: <strong class="ph">{{meter_testing_date}}</strong></div>
+  <div class="date-line">Date: <span class="ph">{{meter_testing_date}}</span></div>
 
   <div class="to-block">
     To,<br>
     Exe. Engineer<br>
-    <strong class="ph">{{discom_division}}</strong>,<br>
+    <span class="ph">{{discom_division}}</span>,<br>
     MSEDCL Co. Ltd.,
   </div>
 
-  <div class="subject-line">Sub.: Testing of &nbsp;Net Meter for installation of solar PV System- Under National Portal applied subsidy scheme Ph-II</div>
+  <div class="subject-line">Sub.: Testing of Net Meter for installation of solar PV System — Under National Portal applied subsidy scheme Ph-II</div>
 
   <p class="body-text">Dear Sir/Madam,</p>
-  <p class="body-text">&nbsp;&nbsp;As per above mentioned subject Please test the Net meter for installation of solar PV system.</p>
-  <p class="body-text">&nbsp;&nbsp;Also send the test report with tested meter while hand over to concern dept.</p>
-  <p class="body-text">&nbsp;&nbsp;Details as per given below.</p>
+  <p class="body-text">&nbsp;&nbsp;As per above mentioned subject, please test the Net Meter for installation of solar PV system.</p>
+  <p class="body-text">&nbsp;&nbsp;Also send the test report with the tested meter while handing over to the concerned department.</p>
+  <p class="body-text">&nbsp;&nbsp;Details as per given below:</p>
 
   <table class="detail-table">
     <thead>
       <tr>
         <th style="width:5%;">Sr<br>No</th>
-        <th style="width:16%;">Name of Consumer &amp; No</th>
+        <th style="width:17%;">Name of Consumer &amp; No.</th>
         <th style="width:20%;">Address</th>
         <th style="width:10%;">Category</th>
-        <th style="width:12%;">Sanction Load/<br>solar Pv Load</th>
-        <th style="width:25%;">Meter Detail- Sr No &amp; Make</th>
-        <th style="width:12%;">Section/<br>Div</th>
+        <th style="width:13%;">Sanction Load /<br>Solar PV Load</th>
+        <th style="width:24%;">Meter Detail — Sr. No. &amp; Make</th>
+        <th style="width:11%;">Section /<br>Div.</th>
       </tr>
     </thead>
     <tbody>
       <tr>
         <td class="tc" rowspan="2">1</td>
-        <td><strong class="ph">{{consumer_name}}</strong></td>
-        <td rowspan="2"><strong class="ph">{{consumer_address}}</strong></td>
+        <td><span class="ph">{{consumer_name}}</span></td>
+        <td rowspan="2"><span class="ph">{{consumer_address}}</span></td>
         <td class="tb tc" rowspan="2">1 Ph,<br>Residential</td>
-        <td rowspan="2" class="tc"><strong class="ph">{{sanction_capacity_kw}}</strong><br>/<br><strong class="ph">{{system_capacity_kw}}</strong></td>
-        <td class="tb">Generation Meter<br>Sr.No.<br>Make-<br>Capacity- 5/30A</td>
+        <td rowspan="2" class="tc">
+          <span class="ph">{{sanction_capacity_kw}}</span><br>/<br><span class="ph">{{system_capacity_kw}}</span>
+        </td>
+        <td class="tb">Generation Meter<br>Sr. No.<br>Make —<br>Capacity — 5/30 A</td>
         <td rowspan="2"></td>
       </tr>
       <tr>
-        <td>Consumer No.<br><strong class="ph">{{consumer_number}}</strong></td>
-        <td class="tb">Payment transaction ref<br>attached<br>Meter Testing Fees<br>RS. 220/-</td>
+        <td>Consumer No.<br><span class="ph">{{consumer_number}}</span></td>
+        <td class="tb">Payment transaction ref.<br>attached<br>Meter Testing Fees<br>RS. 220/-</td>
       </tr>
     </tbody>
   </table>
 
-  <p class="ref-line">Ref:_ -1) _ Attached sanction copy – system generated &nbsp;&nbsp;&nbsp; 2) _ Payment Receipt</p>
+  <p class="ref-line">Ref: 1)&nbsp; Attached sanction copy — system generated &nbsp;&nbsp;&nbsp; 2)&nbsp; Payment Receipt</p>
 
-  <div class="yours-line">Yours Thankfully,</div>
+  <div class="yours-line">Yours Faithfully,</div>
   <div class="stamp-block">
-    <div class="img-stamp"><strong class="ph">{{agency_stamp_image}}</strong></div>
+    <div class="img-stamp"><span class="ph">{{agency_stamp_image}}</span></div>
   </div>
 
 </div>
