@@ -1,0 +1,29 @@
+name: Deploy to DigitalOcean
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Syntax check
+        run: python3 -m py_compile app.py && echo "Syntax OK"
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host:     ${{ secrets.DO_HOST }}
+          username: ${{ secrets.DO_USER }}
+          key:      ${{ secrets.DO_SSH_KEY }}
+          script: |
+            cd /var/www/solardoc/libity_solar
+            git pull origin main
+            source /var/www/solardoc/venv/bin/activate
+            pip install -r requirements.txt --quiet
+            sudo systemctl reload solardoc
+            echo "Deployed at $(date)"
