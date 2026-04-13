@@ -702,6 +702,8 @@ document.addEventListener('DOMContentLoaded', function(){
 
   function startPoll(jid) {
     logIdx  = 0;
+    // Small delay before first poll — job needs time to be registered
+    setTimeout(function() {
     pollInt = setInterval(async () => {
       try {
         const r = await fetch('/api/job/' + jid + '/status?since=' + logIdx);
@@ -721,6 +723,7 @@ document.addEventListener('DOMContentLoaded', function(){
         }
       } catch(e) { aLog('Polling error: ' + e.message, true); }
     }, 500);
+    }, 1500);  // 1.5s initial delay
   }
 
   // ── Generate button ───────────────────────────────────────────────────────
