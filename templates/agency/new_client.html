@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% set brand_url = url_for('agency.dashboard') %}
+{% set nav_user = agency.agency_name %}
+{% set nav_logout = url_for('agency.logout') %}
+{% set nav_links = [
+  {'url': url_for('agency.dashboard'), 'icon': 'ph-squares-four', 'label': 'Dashboard', 'active': false, 'notif_count': 0},
+  {'url': url_for('agency.new_client'), 'icon': 'ph-user-plus', 'label': 'New Client', 'active': true, 'notif_count': 0},
+  {'url': url_for('agency.generate_page'), 'icon': 'ph-file-arrow-up', 'label': 'Generate Docs', 'active': false, 'notif_count': 0},
+  {'url': url_for('agency.history'), 'icon': 'ph-clock-clockwise', 'label': 'History', 'active': false, 'notif_count': 0},
+] %}
+{% block title %}New Client{% endblock %}
+{% block content %}
+<div style="max-width:580px;">
+  <a href="{{ url_for('agency.dashboard') }}" class="btn btn-outline-secondary btn-sm mb-3">
+    <i class="ph ph-arrow-left me-1"></i> Back
+  </a>
+  <h4 class="fw-bold mb-1">New Client</h4>
+  <p style="color:var(--text-muted);font-size:.78rem;margin-bottom:22px;">
+    Add basic details. You'll send a link to the client to collect their documents and signature.
+  </p>
+
+  <div class="fsec">
+    <div class="fsec-head">
+      <div class="fsec-ico" style="background:var(--accent-pale);color:var(--accent);"><i class="ph ph-user"></i></div>
+      <div><p class="fsec-title">Client Information</p><p class="fsec-sub">Name, mobile and project details</p></div>
+    </div>
+    <form method="POST">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Full Name <span class="required">*</span></label>
+          <input type="text" name="name" class="form-control" placeholder="e.g. Ramesh Patil" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Mobile Number <span class="required">*</span></label>
+          <input type="tel" name="mobile" class="form-control" placeholder="10-digit mobile" maxlength="10" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Solar Capacity (kW)</label>
+          <input type="number" step="0.1" name="kw_capacity" class="form-control" placeholder="e.g. 3.0">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Final Amount (₹) <span class="required">*</span></label>
+          <input type="number" name="final_amount" class="form-control" placeholder="e.g. 180000" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Consumer Number (MSEDCL)</label>
+          <input type="text" name="consumer_number" class="form-control" placeholder="e.g. 401234567890">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">City</label>
+          <input type="text" name="city" class="form-control" placeholder="e.g. Nagpur">
+        </div>
+        <div class="col-12">
+          <label class="form-label">Address</label>
+          <textarea name="address" class="form-control" rows="2" placeholder="Installation address with PIN code"></textarea>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;padding:14px;background:var(--accent-pale);border:1px solid var(--accent);border-radius:var(--radius);font-size:.8rem;color:var(--accent);display:flex;align-items:center;gap:8px;">
+        <i class="ph ph-info" style="font-size:15px;flex-shrink:0;"></i>
+        After adding, you can send the client a link to upload their Aadhaar, PAN, cheque and signature from their phone.
+      </div>
+
+      <div class="d-flex gap-2 mt-3">
+        <button type="submit" class="btn btn-primary px-5">
+          <i class="ph ph-user-plus me-1"></i> Add Client
+        </button>
+        <a href="{{ url_for('agency.dashboard') }}" class="btn btn-outline-secondary px-4">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

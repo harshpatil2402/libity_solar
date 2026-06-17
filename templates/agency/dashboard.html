@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% set brand_url = url_for('agency.dashboard') %}
+{% set nav_user = agency.agency_name %}
+{% set nav_logout = url_for('agency.logout') %}
+{% set nav_links = [
+  {'url': url_for('agency.dashboard'), 'icon': 'ph-squares-four', 'label': 'Dashboard', 'active': true, 'notif_count': notif_count if notif_count else 0},
+  {'url': url_for('agency.new_client'), 'icon': 'ph-user-plus', 'label': 'New Client', 'active': false, 'notif_count': 0},
+  {'url': url_for('agency.generate_page'), 'icon': 'ph-file-arrow-up', 'label': 'Generate Docs', 'active': false, 'notif_count': 0},
+  {'url': url_for('agency.history'), 'icon': 'ph-clock-clockwise', 'label': 'History', 'active': false, 'notif_count': 0},
+] %}
+{% block title %}Dashboard — {{ agency.agency_name }}{% endblock %}
+{% block head %}
+<style>
+  .banner{background:var(--accent);border-radius:var(--radius-lg);padding:22px 28px;display:flex;align-items:center;gap:18px;margin-bottom:22px;position:relative;overflow:hidden;}
+  .banner::before{content:'';position:absolute;right:-40px;top:-40px;width:160px;height:160px;background:rgba(255,255,255,.07);border-radius:50%;}
+  .banner-ico{width:50px;height:50px;border-radius:11px;border:2px solid rgba(255,255,255,.3);background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;z-index:1;}
+  .stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+  .stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;display:flex;align-items:center;gap:11px;}
+  .stat-ico{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+  .stat-val{font-size:1.4rem;font-weight:700;line-height:1;}
+  .stat-lbl{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);}
+  .toolbar{display:flex;align-items:center;gap:9px;margin-bottom:18px;flex-wrap:wrap;}
+  .view-toggle{display:flex;border:1.5px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-left:auto;}
+  .vbtn{padding:5px 13px;cursor:pointer;background:transparent;color:var(--text-muted);border:none;font-size:14px;transition:all .13s;}
+  .vbtn.active{background:var(--accent-pale);color:var(--accent);}
+  .kanban{display:flex;gap:11px;overflow-x:auto;padding-bottom:14px;}
+  .kcol{flex-shrink:0;width:220px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;}
+  .khd{padding:9px 13px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+  .ktitle{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;}
+  .kcnt{font-size:.68rem;background:var(--bg-subtle);border-radius:20px;padding:1px 7px;color:var(--text-muted);}
+  .kcards{padding:7px;display:flex;flex-direction:column;gap:6px;min-height:44px;}
+  .kcard{background:var(--bg-subtle);border:1px solid var(--border);border-radius:var(--radius);padding:10px 11px;text-decoration:none;color:var(--text);transition:border-color .13s,box-shadow .13s;display:block;}
+  .kcard:hover{border-color:var(--accent);box-shadow:0 2px 8px rgba(64,96,147,.10);color:var(--text);}
+  .kcard.new-notif{border-color:var(--accent-2);background:var(--accent-pale);}
+  .kc-name{font-size:.8rem;font-weight:600;margin-bottom:2px;}
+  .kc-meta{font-size:.7rem;color:var(--text-muted);}
+  #list-view{display:none;}
+  @media(max-width:576px){.stat-row{grid-template-columns:1fr 1fr;}}
+</style>
+{% endblock %}
+{% block content %}
+{% if is_expired %}
+<div style="filter:blur(6px);pointer-events:none;user-select:none;">
+{% endif %}
+
+<!-- Banner -->
+<div class="banner">
+  <div class="banner-ico" style="position:relative;z-index:1;"><i class="ph-bold ph-sun" style="font-size:22px;color:rgba(255,255,255,.9);"></i></div>
+  <div style="position:relative;z-index:1;">
+    <div style="color:#fff;font-weight:700;font-size:1.05rem;">{{ agency.agency_name }}</div>
+    <div style="color:rgba(255,255,255,.75);font-size:.8rem;">{{ total }} clients · <span style="text-transform:capitalize;">{{ agency.plan }}</span> plan{% if days_remaining is not none %} · {% if days_remaining < 0 %}<span style="color:#FFB3B3;font-weight:700;">Subscription Expired</span>{% elif days_remaining <= 7 %}<span style="color:#FFD580;font-weight:700;">⚠ {{ days_remaining }} days left</span>{% else %}<span style="color:rgba(255,255,255,.85);">{{ days_remaining }} days left</span>{% endif %}{% elif agency.expires_at %} · expires {{ agency.expires_at }}{% endif %}</div>
+  </div>
+  {% if notif_count %}
+  <div style="margin-left:auto;position:relative;z-index:1;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:8px;padding:7px 14px;font-size:.8rem;font-weight:600;display:flex;align-items:center;gap:7px;">
+    <i class="ph ph-bell-ringing"></i> {{ notif_count }} new submission{{ 's' if notif_count > 1 }}
+  </div>
+  {% endif %}
+  <div style="margin-left:{% if not notif_count %}auto{% else %}8px{% endif %};position:relative;z-index:1;display:flex;gap:7px;">
+    <a href="{{ url_for('agency.new_client') }}" class="btn btn-sm" style="background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.3);font-size:.78rem;"><i class="ph ph-user-plus me-1"></i> New Client</a>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="stat-row">
+  <div class="stat-card"><div class="stat-ico" style="background:var(--accent-pale);color:var(--accent);"><i class="ph ph-users"></i></div><div><div class="stat-val">{{ total }}</div><div class="stat-lbl">Total</div></div></div>
+  <div class="stat-card"><div class="stat-ico" style="background:#E8F0FE;color:#2050B0;"><i class="ph ph-activity"></i></div><div><div class="stat-val" style="color:#2050B0;">{{ total - completed }}</div><div class="stat-lbl">Active</div></div></div>
+  <div class="stat-card"><div class="stat-ico" style="background:var(--success-pale);color:#2D7A4A;"><i class="ph ph-check-circle"></i></div><div><div class="stat-val" style="color:#2D7A4A;">{{ completed }}</div><div class="stat-lbl">Completed</div></div></div>
+  <div class="stat-card"><div class="stat-ico" style="background:var(--warn-pale);color:var(--warn);"><i class="ph ph-bell"></i></div><div><div class="stat-val" style="color:var(--warn);">{{ notif_count }}</div><div class="stat-lbl">New Info</div></div></div>
+</div>
+
+<!-- Toolbar -->
+<form method="GET" class="toolbar">
+  <input class="form-control" style="max-width:240px;font-size:.82rem;" type="search" name="q" placeholder="Search name or mobile…" value="{{ search }}">
+  <select class="form-select" style="max-width:180px;font-size:.82rem;" name="status" onchange="this.form.submit()">
+    <option value="">All Statuses</option>
+    {% for s in statuses %}<option value="{{ s }}" {% if fstatus==s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+  </select>
+  {% if search or fstatus %}<a href="{{ url_for('agency.dashboard') }}" class="btn btn-outline-secondary btn-sm"><i class="ph ph-x"></i></a>{% endif %}
+  <a href="{{ url_for('agency.export_csv') }}" class="btn btn-outline-secondary btn-sm" style="margin-left:auto;"><i class="ph ph-download-simple me-1"></i> Export CSV</a>
+  <div class="view-toggle" style="margin-left:0;">
+    <button type="button" class="vbtn active" id="btn-kanban" onclick="switchView('kanban')"><i class="ph ph-squares-four"></i></button>
+    <button type="button" class="vbtn" id="btn-list" onclick="switchView('list')"><i class="ph ph-list"></i></button>
+  </div>
+</form>
+
+<!-- Kanban -->
+<div id="kanban-view">
+  <div class="kanban">
+    {% for status in statuses %}
+    <div class="kcol">
+      <div class="khd">
+        <span class="ktitle" style="color:{{ status_colors[status] }};">{{ status }}</span>
+        <span class="kcnt">{{ kanban[status]|length }}</span>
+      </div>
+      <div class="kcards">
+        {% for c in kanban[status] %}
+        <a href="{{ url_for('agency.client_detail', client_id=c.id) }}" class="kcard {% if status == 'Info Collected' %}new-notif{% endif %}">
+          <div class="kc-name">{{ c.name }}</div>
+          <div class="kc-meta"><i class="ph ph-phone" style="font-size:10px;"></i> {{ c.mobile }}</div>
+          {% if c.final_amount %}<div style="font-size:.7rem;color:var(--accent);margin-top:4px;font-weight:600;">₹{{ '{:,.0f}'.format(c.final_amount) }}</div>{% endif %}
+          {% if c.kw_capacity %}<div style="font-size:.7rem;color:var(--text-muted);">⚡ {{ c.kw_capacity }} kW</div>{% endif %}
+        </a>
+        {% else %}
+        <div style="font-size:.68rem;color:var(--text-light);padding:7px;text-align:center;">Empty</div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- List -->
+<div id="list-view">
+  <div class="table-wrap">
+    <table class="table mb-0">
+      <thead><tr><th>Client</th><th>Mobile</th><th>kW</th><th>Amount</th><th>Status</th><th>Updated</th><th></th></tr></thead>
+      <tbody>
+        {% for c in clients %}
+        <tr>
+          <td><strong>{{ c.name }}</strong><br><span style="font-size:.7rem;color:var(--text-muted);">{{ c.city or '' }}</span></td>
+          <td><span class="mono">{{ c.mobile }}</span></td>
+          <td>{{ c.kw_capacity or '—' }}</td>
+          <td>{% if c.final_amount %}₹{{ '{:,.0f}'.format(c.final_amount) }}{% else %}—{% endif %}</td>
+          <td><span class="chip" style="background:{{ status_colors.get(c.status,'#406093') }}18;color:{{ status_colors.get(c.status,'#406093') }};">{{ c.status }}</span></td>
+          <td style="font-size:.72rem;color:var(--text-muted);">{{ c.updated_at[:10] if c.updated_at else '—' }}</td>
+          <td><a href="{{ url_for('agency.client_detail', client_id=c.id) }}" class="btn btn-outline-primary btn-sm">View →</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:36px;">No clients yet. <a href="{{ url_for('agency.new_client') }}">Add one →</a></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if is_expired %}
+</div><!-- end blur wrapper -->
+<div style="position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.15);">
+  <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:38px 42px;max-width:440px;text-align:center;box-shadow:0 8px 48px rgba(0,0,0,.28);">
+    <div style="font-size:48px;margin-bottom:14px;">⏰</div>
+    <h4 style="font-weight:700;color:var(--danger);margin-bottom:10px;">Subscription Expired</h4>
+    <p style="color:var(--text-muted);font-size:.88rem;line-height:1.7;margin:0;">Your plan has expired.<br>Please contact your Superadmin to renew your subscription.</p>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+function switchView(v){
+  document.getElementById('kanban-view').style.display=v==='kanban'?'block':'none';
+  document.getElementById('list-view').style.display=v==='list'?'block':'none';
+  document.getElementById('btn-kanban').classList.toggle('active',v==='kanban');
+  document.getElementById('btn-list').classList.toggle('active',v==='list');
+  localStorage.setItem('solar_view',v);
+}
+switchView(localStorage.getItem('solar_view')||'kanban');
+</script>
+{% endblock %}

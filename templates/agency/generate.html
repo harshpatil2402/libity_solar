@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+{% set brand_url = url_for('agency.dashboard') %}
+{% set nav_user = agency.agency_name %}
+{% set nav_logout = url_for('agency.logout') %}
+{% set nav_links = [
+  {'url': url_for('agency.dashboard'), 'icon': 'ph-squares-four', 'label': 'Dashboard', 'active': false, 'notif_count': 0},
+  {'url': url_for('agency.new_client'), 'icon': 'ph-user-plus', 'label': 'New Client', 'active': false, 'notif_count': 0},
+  {'url': url_for('agency.generate_page'), 'icon': 'ph-file-arrow-up', 'label': 'Generate Docs', 'active': true, 'notif_count': 0},
+  {'url': url_for('agency.history'), 'icon': 'ph-clock-clockwise', 'label': 'History', 'active': false, 'notif_count': 0},
+] %}
+{% block title %}Generate Documents{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+<style>
+  .gen-layout{display:grid;grid-template-columns:190px 1fr;gap:22px;align-items:start;}
+  .side-nav{position:sticky;top:calc(var(--nav-h)+16px);background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:10px 7px;}
+  .snavlink{display:flex;align-items:center;gap:7px;padding:6px 10px;border-radius:var(--radius);font-size:.76rem;font-weight:500;color:var(--text-muted);cursor:pointer;text-decoration:none;transition:all .13s;}
+  .snavlink:hover,.snavlink.active{background:var(--accent-pale);color:var(--accent);}
+  .snavlink.active{font-weight:700;}
+  .snavlink i{font-size:13px;}
+  .upload-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:14px;background:var(--bg-subtle);cursor:pointer;transition:border-color .15s;}
+  .upload-zone:hover{border-color:var(--accent);}
+  .preview-img{width:100%;max-height:90px;object-fit:contain;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg-card);padding:3px;margin-top:7px;}
+  .img-container{width:100%;height:360px;background:#111;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+  #cropImg{display:block;max-width:100%;max-height:100%;}
+  .doc-chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:18px;}
+  .doc-chip{display:flex;align-items:center;gap:5px;padding:5px 11px;background:var(--bg-subtle);border:1px solid var(--border);border-radius:20px;font-size:.74rem;font-weight:500;color:var(--text-muted);}
+  #logBody{min-height:160px;max-height:320px;overflow-y:auto;padding:12px 16px;background:#0d1117;font-family:'SF Mono','Fira Code',monospace;font-size:.76rem;}
+  .ll{display:block;padding:1px 0;} .ll.ok{color:#3fb950;} .ll.err{color:#f85149;} .ll.inf{color:#8b949e;}
+  .dot-loader{display:flex;gap:5px;align-items:center;}
+  .dot-loader span{width:6px;height:6px;border-radius:50%;background:#4C8CE4;animation:db 1.2s infinite both;}
+  .dot-loader span:nth-child(2){animation-delay:.2s;} .dot-loader span:nth-child(3){animation-delay:.4s;}
+  @keyframes db{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
+  .sub-label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin:12px 0 8px;}
+  .fetched-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;background:var(--success-pale);color:#2D7A4A;border:1px solid #A8DCA0;border-radius:20px;font-size:.7rem;font-weight:600;}
+  @media(max-width:768px){.gen-layout{grid-template-columns:1fr;} .side-nav{display:none;}}
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+  <div>
+    {% if client %}
+    <a href="{{ url_for('agency.client_detail', client_id=client.id) }}" class="btn btn-outline-secondary btn-sm mb-2">
+      <i class="ph ph-arrow-left me-1"></i> Back to {{ client.name }}
+    </a>
+    {% else %}
+    <a href="{{ url_for('agency.dashboard') }}" class="btn btn-outline-secondary btn-sm mb-2">
+      <i class="ph ph-arrow-left me-1"></i> Dashboard
+    </a>
+    {% endif %}
+    <h4 class="fw-bold mb-0">Generate Documents</h4>
+    <p style="color:var(--text-muted);font-size:.76rem;margin:3px 0 0;">Fill details to generate 5-document PDF set.</p>
+  </div>
+</div>
+
+{% if submission %}
+<div style="display:flex;align-items:center;gap:8px;padding:11px 16px;background:var(--success-pale);border:1px solid #A8DCA0;border-radius:var(--radius-lg);margin-bottom:18px;font-size:.82rem;color:#2D7A4A;">
+  <i class="ph ph-check-circle" style="font-size:16px;"></i>
+  <strong>{{ client.name }}</strong>'s Aadhaar and signature auto-fetched from their submission — no need to re-upload.
+</div>
+{% endif %}
+
+<div class="gen-layout">
+  <div class="side-nav">
+    <a class="snavlink active" href="#s1" data-s="s1"><i class="ph ph-user"></i> Consumer</a>
+    <a class="snavlink" href="#s2" data-s="s2"><i class="ph ph-lightning"></i> Grid</a>
+    <a class="snavlink" href="#s3" data-s="s3"><i class="ph ph-sun"></i> Technical</a>
+    <a class="snavlink" href="#s4" data-s="s4"><i class="ph ph-calendar-blank"></i> Dates</a>
+    <a class="snavlink" href="#s5" data-s="s5"><i class="ph ph-upload-simple"></i> Documents</a>
+    <a class="snavlink" href="#s6" data-s="s6"><i class="ph ph-file-pdf"></i> Generate</a>
+  </div>
+
+  <div>
+  <form id="genForm">
+    <input type="hidden" name="client_id" value="{{ client.id if client else '' }}">
+
+    <!-- S1 Consumer -->
+    <div class="fsec" id="s1">
+      <div class="fsec-head">
+        <div class="fsec-ico" style="background:var(--accent-pale);color:var(--accent);"><i class="ph ph-user"></i></div>
+        <div><p class="fsec-title">Consumer Details</p><p class="fsec-sub">Personal and contact information</p></div>
+      </div>
+      <div class="row g-3">
+        <div class="col-md-6"><label class="form-label">Consumer Name <span class="required">*</span></label><input type="text" name="consumer_name" class="form-control" required value="{{ client.name if client else '' }}"></div>
+        <div class="col-md-6"><label class="form-label">Consumer Number <span class="required">*</span></label><input type="text" name="consumer_number" class="form-control" required value="{{ client.consumer_number if client else '' }}"></div>
+        <div class="col-12"><label class="form-label">Installation Address <span class="required">*</span></label><textarea name="consumer_address" class="form-control" rows="2" required>{{ client.address if client else '' }}</textarea></div>
+        <div class="col-md-4"><label class="form-label">City <span class="required">*</span></label><input type="text" name="city" class="form-control" required value="{{ client.city if client else '' }}"></div>
+        <div class="col-md-4"><label class="form-label">Contact Number <span class="required">*</span></label><input type="tel" name="consumer_contact_number" class="form-control" required value="{{ client.mobile if client else '' }}"></div>
+        <div class="col-md-4"><label class="form-label">Email</label><input type="email" name="consumer_email" class="form-control" value=""></div>
+        <div class="col-md-6"><label class="form-label">Aadhaar Number</label><input type="text" name="consumer_aadhar_num" class="form-control" placeholder="XXXX XXXX XXXX" value="{{ submission.consumer_aadhar_num if submission else '' }}"></div>
+      </div>
+    </div>
+
+    <!-- S2 Grid -->
+    <div class="fsec" id="s2">
+      <div class="fsec-head">
+        <div class="fsec-ico" style="background:#FFF3E0;color:#B05000;"><i class="ph ph-lightning"></i></div>
+        <div><p class="fsec-title">Grid & Sanction Details</p></div>
+      </div>
+      <div class="row g-3">
+        <div class="col-md-6"><label class="form-label">DISCOM Division <span class="required">*</span></label><input type="text" name="discom_division" class="form-control" required placeholder="e.g. MSEDCL Nagpur Urban"></div>
+        <div class="col-md-6"><label class="form-label">Licensee Name <span class="required">*</span></label><input type="text" name="licensee_name" class="form-control" required placeholder="Maharashtra State Electricity..."></div>
+        <div class="col-md-4"><label class="form-label">Sanction Number <span class="required">*</span></label><input type="text" name="sanction_number" class="form-control" required></div>
+        <div class="col-md-4"><label class="form-label">Sanctioned Capacity (kW) <span class="required">*</span></label><input type="number" step="0.01" name="sanction_capacity_kw" class="form-control" required value="{{ client.kw_capacity if client else '' }}"></div>
+        <div class="col-md-4"><label class="form-label">Installed Capacity (kW) <span class="required">*</span></label><input type="number" step="0.01" name="system_capacity_kw" class="form-control" required value="{{ client.kw_capacity if client else '' }}"></div>
+        <div class="col-md-4"><label class="form-label">Solar Price (Rs./kWh) <span class="required">*</span></label><input type="text" name="agreement_solar_price" class="form-control" required placeholder="e.g. 3.50"></div>
+      </div>
+    </div>
+
+    <!-- S3 Technical -->
+    <div class="fsec" id="s3">
+      <div class="fsec-head">
+        <div class="fsec-ico" style="background:#E8F5EC;color:#2D7A4A;"><i class="ph ph-sun"></i></div>
+        <div><p class="fsec-title">Technical Specifications</p></div>
+      </div>
+      <div class="sub-label">Solar Modules</div>
+      <div class="row g-3 mb-2">
+        <div class="col-md-4"><label class="form-label">Make / Brand</label><input type="text" name="module_make" class="form-control" placeholder="e.g. Waaree"></div>
+        <div class="col-md-4"><label class="form-label">ALMM Model Number</label><input type="text" name="almm_model_number" class="form-control" placeholder="ALMM/LM/..."></div>
+        <div class="col-md-4"><label class="form-label">Efficiency (%)</label><input type="text" name="module_efficiency" class="form-control" placeholder="e.g. 20.5"></div>
+        <div class="col-md-4"><label class="form-label">Wattage per Module (Wp)</label><input type="number" name="module_capacity_wp" id="wp_inp" class="form-control" placeholder="e.g. 540"></div>
+        <div class="col-md-4"><label class="form-label">Number of Modules</label><input type="number" name="num_pv_modules" id="nm_inp" class="form-control" placeholder="e.g. 10"></div>
+        <div class="col-md-4"><label class="form-label">Total Capacity (kWp)</label><input type="number" step="0.01" name="total_module_capacity_kwp" id="kwp_inp" class="form-control" placeholder="Auto"></div>
+      </div>
+      <div class="sub-label">Inverter</div>
+      <div class="row g-3">
+        <div class="col-md-6"><label class="form-label">Inverter Make & Model</label><input type="text" name="inverter_make_and_model" class="form-control" placeholder="e.g. Sungrow SG5KTL-MT"></div>
+        <div class="col-md-3"><label class="form-label">Capacity (kW)</label><input type="number" step="0.01" name="inverter_capacity_kw" class="form-control" value="{{ client.kw_capacity if client else '' }}"></div>
+        <div class="col-md-3"><label class="form-label">Rating</label><input type="text" name="inverter_rating_text" class="form-control" placeholder="e.g. 5 KVA"></div>
+      </div>
+    </div>
+
+    <!-- S4 Dates -->
+    <div class="fsec" id="s4">
+      <div class="fsec-head">
+        <div class="fsec-ico" style="background:#F3E8FF;color:#7040B0;"><i class="ph ph-calendar-blank"></i></div>
+        <div><p class="fsec-title">Important Dates</p></div>
+      </div>
+      <div class="row g-3">
+        <div class="col-md-4"><label class="form-label">Agreement Date</label><input type="date" name="agreement_date" class="form-control"></div>
+        <div class="col-md-4"><label class="form-label">Annexure Agreement Date</label><input type="date" name="annexure_agreement_date" class="form-control"></div>
+        <div class="col-md-4"><label class="form-label">Installation Date</label><input type="date" name="installation_date" class="form-control"></div>
+        <div class="col-md-6"><label class="form-label">Meter Testing Date</label><input type="date" name="meter_testing_date" class="form-control"></div>
+        <div class="col-md-6"><label class="form-label">Performance Check Date</label><input type="date" name="performance_check_date" class="form-control"></div>
+      </div>
+    </div>
+
+    <!-- S5 Documents -->
+    <div class="fsec" id="s5">
+      <div class="fsec-head">
+        <div class="fsec-ico" style="background:#E8F0FE;color:#2050B0;"><i class="ph ph-upload-simple"></i></div>
+        <div><p class="fsec-title">Consumer Documents</p><p class="fsec-sub">{% if submission %}Auto-fetched from client submission{% else %}Upload manually{% endif %}</p></div>
+      </div>
+      <input type="hidden" name="sig_b64" id="sig_b64" value="{{ submission.signature_b64 if submission else '' }}">
+      <input type="hidden" name="aadhar_b64" id="aadhar_b64" value="{{ submission.aadhar_b64 if submission else '' }}">
+
+      {% if submission %}
+      <div class="row g-3">
+        {% for label, key in [('Signature','signature_b64'),('Aadhaar Card','aadhar_b64')] %}
+        <div class="col-md-6">
+          <div class="img-label">{{ label }} <span class="fetched-badge ms-1"><i class="ph ph-check" style="font-size:9px;"></i> Auto-fetched</span></div>
+          <img src="{{ submission[key] }}" class="preview-img" style="display:block;max-height:100px;">
+        </div>
+        {% endfor %}
+      </div>
+      <div style="font-size:.76rem;color:var(--text-muted);margin-top:10px;"><i class="ph ph-info" style="color:var(--accent);"></i> Images are fetched from client's submission. Upload below to override.</div>
+      <hr style="border-color:var(--border);margin:14px 0;">
+      {% endif %}
+
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div class="upload-zone" onclick="document.getElementById('sig_file').click()">
+            <label class="form-label mb-1">{% if submission %}Override Signature{% else %}Consumer Signature <span class="required">*</span>{% endif %}</label>
+            <input type="file" id="sig_file" class="crop-input" data-target="sig" data-ratio="3" accept="image/*" style="display:none;">
+            <div style="font-size:.78rem;color:var(--text-muted);display:flex;align-items:center;gap:5px;"><i class="ph ph-upload-simple"></i> Click to upload &amp; crop (3:1)</div>
+            <img id="sig-preview" class="preview-img" style="display:none;" alt="">
+            <div id="sig-status" style="font-size:.7rem;color:var(--text-muted);margin-top:5px;">{% if submission %}Using submission image{% else %}Not uploaded{% endif %}</div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="upload-zone" onclick="document.getElementById('aadhar_file').click()">
+            <label class="form-label mb-1">{% if submission %}Override Aadhaar{% else %}Consumer Aadhaar <span class="required">*</span>{% endif %}</label>
+            <input type="file" id="aadhar_file" class="crop-input" data-target="aadhar" data-ratio="1.5714" accept="image/*" style="display:none;">
+            <div style="font-size:.78rem;color:var(--text-muted);display:flex;align-items:center;gap:5px;"><i class="ph ph-upload-simple"></i> Click to upload &amp; crop (11:7)</div>
+            <img id="aadhar-preview" class="preview-img" style="display:none;" alt="">
+            <div id="aadhar-status" style="font-size:.7rem;color:var(--text-muted);margin-top:5px;">{% if submission %}Using submission image{% else %}Not uploaded{% endif %}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- S6 Generate -->
+    <div class="fsec" id="s6">
+      <div class="fsec-head">
+        <div class="fsec-ico" style="background:var(--accent-pale);color:var(--accent);"><i class="ph ph-file-pdf"></i></div>
+        <div><p class="fsec-title">Generate & Download</p><p class="fsec-sub">5 PDF documents in one ZIP</p></div>
+      </div>
+      <div class="doc-chips">
+        {% for ico, name in [('ph-file-text','Commissioning Report'),('ph-gauge','Meter Testing'),('ph-handshake','Model Agreement'),('ph-lightning','Net Metering'),('ph-check-square','Work Completion')] %}
+        <div class="doc-chip"><i class="ph {{ ico }}"></i><span>{{ name }}</span></div>
+        {% endfor %}
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 18px;background:var(--bg-subtle);border-radius:var(--radius-lg);border:1px solid var(--border);">
+        <div style="font-size:.8rem;color:var(--text-muted);">
+          <i class="ph ph-file-pdf" style="color:var(--accent-2);font-size:15px;"></i>
+          Output: <strong style="color:var(--text);">PDF only</strong> · All 5 in one ZIP
+        </div>
+        <button type="submit" id="genBtn" class="btn btn-primary" style="padding:9px 26px;">
+          <i class="ph ph-file-arrow-up me-1"></i> Generate PDFs
+        </button>
+      </div>
+    </div>
+  </form>
+  </div>
+</div>
+
+<!-- Log Modal -->
+<div class="modal fade" id="logModal" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0 overflow-hidden" style="background:var(--bg-card);">
+      <div style="background:#0d1117;padding:16px 20px;display:flex;align-items:center;gap:12px;">
+        <div id="mSpinner" class="dot-loader"><span></span><span></span><span></span></div>
+        <span id="mTitle" style="font-weight:700;font-size:.95rem;color:#e6edf3;">Generating Documents …</span>
+      </div>
+      <div id="logBody"></div>
+      <div style="padding:12px 18px;border-top:1px solid var(--border);background:var(--bg-subtle);display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <a href="#" id="dlLink" class="btn btn-success px-5" style="display:none;"><i class="ph ph-download-simple me-1"></i> Download ZIP</a>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="closeBtn" data-bs-dismiss="modal" style="display:none;">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Crop Modal -->
+<div class="modal fade" id="cropModal" data-bs-backdrop="static">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0" style="background:var(--bg-card);">
+      <div class="modal-header border-0" style="background:var(--accent);"><h5 class="modal-title text-white"><i class="ph ph-crop me-2"></i>Crop Image</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body p-0"><div class="img-container"><img id="cropImg" alt=""></div></div>
+      <div class="modal-footer border-0" style="background:var(--bg-subtle);"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" class="btn btn-primary px-4" id="cropBtn"><i class="ph ph-check me-1"></i> Crop & Save</button></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  // Sidebar scroll-spy
+  const secs=document.querySelectorAll('.fsec'),nls=document.querySelectorAll('.snavlink');
+  const io=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting){const id=e.target.id;nls.forEach(l=>l.classList.toggle('active',l.dataset.s===id));}});},{rootMargin:'-60px 0px -55% 0px',threshold:.1});
+  secs.forEach(s=>io.observe(s));
+  nls.forEach(l=>l.addEventListener('click',function(e){e.preventDefault();document.querySelector(l.getAttribute('href'))?.scrollIntoView({behavior:'smooth',block:'start'});}));
+
+  // Auto-calc KWp
+  const wpI=document.getElementById('wp_inp'),nmI=document.getElementById('nm_inp'),kI=document.getElementById('kwp_inp');
+  function calc(){const n=parseFloat(nmI.value)||0,w=parseFloat(wpI.value)||0;if(n&&w)kI.value=(n*w/1000).toFixed(2);}
+  wpI&&wpI.addEventListener('input',calc);nmI&&nmI.addEventListener('input',calc);
+
+  // Crop
+  let cropper=null,cropTarget='',cropRatio=1;
+  const cme=document.getElementById('cropModal'),getCM=()=>bootstrap.Modal.getOrCreateInstance(cme),ci=document.getElementById('cropImg');
+  document.querySelectorAll('.crop-input').forEach(function(inp){
+    inp.addEventListener('change',function(){
+      if(!this.files||!this.files[0]) return;
+      cropTarget=this.dataset.target;cropRatio=parseFloat(this.dataset.ratio)||NaN;
+      const r=new FileReader();r.onload=e=>{ci.src=e.target.result;getCM().show();};r.readAsDataURL(this.files[0]);
+    });
+  });
+  cme.addEventListener('shown.bs.modal',function(){if(cropper){cropper.destroy();cropper=null;}cropper=new Cropper(ci,{aspectRatio:cropRatio,viewMode:1,autoCropArea:.95});});
+  cme.addEventListener('hidden.bs.modal',function(){if(cropper){cropper.destroy();cropper=null;}});
+  document.getElementById('cropBtn').addEventListener('click',function(){
+    if(!cropper) return;
+    const b64=cropper.getCroppedCanvas({maxWidth:1400,imageSmoothingQuality:'high'}).toDataURL('image/jpeg',.92);
+    const hf=document.getElementById(cropTarget+'_b64');if(hf)hf.value=b64;
+    const pr=document.getElementById(cropTarget+'-preview');if(pr){pr.src=b64;pr.style.display='block';}
+    const st=document.getElementById(cropTarget+'-status');if(st)st.innerHTML='<i class="ph ph-check-circle" style="color:var(--accent);"></i> Image ready';
+    getCM().hide();
+  });
+
+  // Generation
+  const form=document.getElementById('genForm'),genBtn=document.getElementById('genBtn');
+  const logBody=document.getElementById('logBody'),dlLink=document.getElementById('dlLink');
+  const closeBtn=document.getElementById('closeBtn'),mSpinner=document.getElementById('mSpinner'),mTitle=document.getElementById('mTitle');
+  const logModal=new bootstrap.Modal(document.getElementById('logModal'));
+  let pollInt=null,logIdx=0;
+
+  function aLog(msg,err){
+    const s=document.createElement('span');
+    s.className='ll '+(err?'err':/Done:|ZIP|ready/i.test(msg)?'ok':'inf');
+    s.textContent='> '+msg;
+    logBody.appendChild(s);logBody.appendChild(document.createTextNode('\n'));
+    logBody.scrollTop=logBody.scrollHeight;
+  }
+  function stopPoll(){if(pollInt){clearInterval(pollInt);pollInt=null;}}
+
+  async function triggerDownload(url,fname){
+    try{const r=await fetch(url,{credentials:'same-origin'});if(!r.ok)throw new Error('HTTP '+r.status);
+    const blob=await r.blob(),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fname||'documents.zip';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);}
+    catch(e){aLog('Download error: '+e.message,true);}
+  }
+
+  function showDone(url,zname){
+    stopPoll();mSpinner.style.display='none';mTitle.textContent='Complete — documents ready.';mTitle.style.color='#3fb950';
+    dlLink.href='#';dlLink.onclick=e=>{e.preventDefault();triggerDownload(url,zname);};
+    dlLink.style.display='inline-flex';closeBtn.style.display='inline-block';
+    genBtn.disabled=false;genBtn.innerHTML='<i class="ph ph-file-arrow-up me-1"></i> Generate PDFs';
+    setTimeout(()=>triggerDownload(url,zname),400);
+  }
+
+  function startPoll(jid){
+    logIdx=0;
+    pollInt=setInterval(async()=>{
+      try{
+        const r=await fetch('/agency/api/job/'+jid+'/status?since='+logIdx);
+        if(!r.ok) return;
+        const d=await r.json();
+        d.logs.forEach(e=>aLog(e.msg,e.error));logIdx+=d.logs.length;
+        if(d.status==='done') showDone(d.download_url,d.zip_name);
+        if(d.status==='error'){stopPoll();mSpinner.style.display='none';mTitle.textContent='Generation failed.';mTitle.style.color='#f85149';closeBtn.style.display='inline-block';genBtn.disabled=false;genBtn.innerHTML='<i class="ph ph-file-arrow-up me-1"></i> Generate PDFs';}
+      }catch(e){}
+    },900);
+  }
+
+  form.addEventListener('submit',async function(e){
+    e.preventDefault();
+    if(!form.checkValidity()){form.reportValidity();return;}
+    const sigVal=document.getElementById('sig_b64').value;
+    if(!sigVal){alert('Signature is required. Upload in Documents section.');return;}
+    logBody.innerHTML='';dlLink.style.display='none';closeBtn.style.display='none';
+    mSpinner.style.display='';mTitle.style.color='#e6edf3';mTitle.textContent='Generating Documents …';
+    genBtn.disabled=true;genBtn.innerHTML='<span class="spinner-border spinner-border-sm me-2"></span>Generating...';
+    logModal.show();
+    const data=Object.fromEntries(new FormData(form).entries());
+    data.sig_b64=document.getElementById('sig_b64').value;
+    data.aadhar_b64=document.getElementById('aadhar_b64').value;
+    aLog('Submitting job ...');
+    try{
+      const res=await fetch('/agency/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+      const json=await res.json();
+      if(json.job_id){aLog('Job started: '+json.job_id.slice(0,8)+' …');startPoll(json.job_id);}
+      else throw new Error(json.error||'No job_id');
+    }catch(err){aLog(err.message,true);genBtn.disabled=false;genBtn.innerHTML='<i class="ph ph-file-arrow-up me-1"></i> Generate PDFs';}
+  });
+});
+</script>
+{% endblock %}

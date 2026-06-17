@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Superadmin Login{% endblock %}
+{% block content %}
+<div style="max-width:380px;margin:60px auto;">
+  <div class="card p-4">
+    <div class="d-flex align-items-center gap-3 mb-4">
+      <div style="width:44px;height:44px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center;"><i class="ph ph-shield-check" style="font-size:22px;color:#fff;"></i></div>
+      <div><div style="font-weight:700;font-size:1rem;">Superadmin</div><div style="font-size:.74rem;color:var(--text-muted);">LibityInfotech Solar SaaS</div></div>
+    </div>
+    {% if error %}<div style="background:var(--danger-pale);color:var(--danger);border:1px solid var(--danger);border-radius:var(--radius);padding:10px 14px;font-size:.82rem;margin-bottom:16px;"><i class="ph ph-warning-circle me-1"></i>{{ error }}</div>{% endif %}
+    <form method="POST">
+      <div class="mb-3"><label class="form-label">Username</label><input type="text" name="username" class="form-control" autofocus required></div>
+      <div class="mb-4"><label class="form-label">Password</label><input type="password" name="password" class="form-control" required></div>
+      <button class="btn btn-primary w-100"><i class="ph ph-sign-in me-1"></i> Sign In</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

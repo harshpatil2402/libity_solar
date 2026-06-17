@@ -1,0 +1,72 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><title>GPS Photo</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@phosphor-icons/web@2.1.1/src/index.js" defer></script>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Inter',sans-serif;background:#FAF8F0;min-height:100vh;padding:0 0 40px;}
+.header{background:#406093;padding:16px 18px;display:flex;align-items:center;gap:10px;}
+.header h1{color:#fff;font-size:.95rem;font-weight:700;margin:0;}.header p{color:rgba(255,255,255,.75);font-size:.74rem;margin:0;}
+.content{padding:18px 16px;}
+#preview{width:100%;border-radius:10px;border:2px solid #C8D6E8;background:#000;min-height:180px;object-fit:cover;display:none;margin-bottom:12px;}
+.gps-info{background:#E8F0F8;border-radius:8px;padding:9px 12px;font-size:.76rem;color:#5A6A7A;margin-bottom:14px;display:none;}
+.btn{width:100%;border:none;border-radius:10px;padding:13px;font-size:.9rem;font-weight:600;cursor:pointer;margin-bottom:9px;display:flex;align-items:center;justify-content:center;gap:7px;transition:all .13s;}
+.btn-cam{background:#F0F4FA;color:#1A2A3A;border:1.5px solid #C8D6E8;}
+.btn-cam:hover{border-color:#406093;}
+.btn-submit{background:#406093;color:#fff;}.btn-submit:hover{background:#2E4A73;}.btn-submit:disabled{background:#8AAAC8;cursor:not-allowed;}
+.status{font-size:.76rem;color:#5A6A7A;text-align:center;margin-top:4px;}
+.steps{background:#fff;border:1px solid #C8D6E8;border-radius:10px;padding:14px;}
+.step{font-size:.78rem;color:#5A6A7A;margin-bottom:6px;display:flex;gap:8px;line-height:1.5;}
+.success-box{background:#F0FAE8;border:1px solid #A8DCA0;border-radius:12px;padding:26px;text-align:center;display:none;}
+</style></head>
+<body>
+<div class="header">
+  <div><h1>📸 GPS Photo — {{ agency.agency_name }}</h1><p>Hi {{ client.name }}, please take a photo of your solar installation.</p></div>
+</div>
+<div class="content">
+  <div id="mainView">
+    <div style="background:#FFF8E1;border:1.5px solid #F0B429;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:.82rem;color:#7A4F00;line-height:1.6;">
+      <strong>📍 Important:</strong> Please use the <strong>"GPS Map Camera"</strong> app to take your geo-tagged photos, then upload them here.
+    </div>
+    <img id="preview" alt="Preview">
+    <div class="gps-info" id="gps-info"><i class="ph ph-map-pin" style="color:#406093;"></i> GPS: <strong id="coords">Fetching…</strong></div>
+    <input type="file" id="file-input" accept="image/*" capture="environment" style="display:none" onchange="handleFile(this)">
+    <button class="btn btn-cam" onclick="document.getElementById('file-input').click()"><i class="ph ph-camera" style="font-size:18px;"></i> Take Photo / Choose from Gallery</button>
+    <button class="btn btn-submit" id="submit-btn" disabled onclick="submitPhoto()"><i class="ph ph-upload-simple" style="font-size:17px;"></i> Upload with GPS Location</button>
+    <div class="status" id="status-msg"></div>
+    <div class="steps mt-3">
+      <div class="step"><span>1️⃣</span> Allow camera + location access when prompted</div>
+      <div class="step"><span>2️⃣</span> Take a clear photo of the solar panels and inverter</div>
+      <div class="step"><span>3️⃣</span> Tap Upload — GPS coordinates attach automatically</div>
+    </div>
+  </div>
+  <div class="success-box" id="successBox">
+    <div style="font-size:44px;margin-bottom:12px;">✅</div>
+    <div style="font-weight:700;font-size:1.05rem;color:#2D7A4A;margin-bottom:8px;">Photo Submitted!</div>
+    <p style="color:#5A6A7A;font-size:.82rem;">Your GPS photo has been received. The agency has been notified.</p>
+  </div>
+</div>
+<script>
+let capturedImage=null,gpsLat=null,gpsLng=null;
+if(navigator.geolocation){
+  navigator.geolocation.getCurrentPosition(
+    p=>{gpsLat=p.coords.latitude;gpsLng=p.coords.longitude;document.getElementById('coords').textContent=`${gpsLat.toFixed(5)}, ${gpsLng.toFixed(5)}`;},
+    ()=>{document.getElementById('coords').textContent='GPS unavailable';},
+    {enableHighAccuracy:true,timeout:15000}
+  );
+}
+function handleFile(inp){
+  if(!inp.files||!inp.files[0]) return;
+  const r=new FileReader();
+  r.onload=e=>{capturedImage=e.target.result;const pr=document.getElementById('preview');pr.src=capturedImage;pr.style.display='block';document.getElementById('gps-info').style.display='block';document.getElementById('submit-btn').disabled=false;document.getElementById('status-msg').textContent='Photo ready — tap Upload.';};
+  r.readAsDataURL(inp.files[0]);
+}
+async function submitPhoto(){
+  if(!capturedImage) return;
+  const btn=document.getElementById('submit-btn');btn.disabled=true;document.getElementById('status-msg').textContent='Uploading…';
+  try{
+    const res=await fetch(window.location.pathname,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({photo_b64:capturedImage,lat:gpsLat,lng:gpsLng})});
+    const d=await res.json();
+    if(d.success){document.getElementById('mainView').style.display='none';document.getElementById('successBox').style.display='block';}
+    else{document.getElementById('status-msg').textContent='Upload failed. Retry.';btn.disabled=false;}
+  }catch(e){document.getElementById('status-msg').textContent='Network error. Retry.';btn.disabled=false;}
+}
+</script>
+</body></html>

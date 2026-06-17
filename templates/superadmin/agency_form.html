@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% set brand_url = url_for('superadmin.dashboard') %}
+{% set nav_user = 'Superadmin' %}
+{% set nav_logout = url_for('superadmin.logout') %}
+{% block title %}{{ title }} — Superadmin{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+<style>
+.upload-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:16px;background:var(--bg-subtle);cursor:pointer;transition:border-color .15s;}
+.upload-zone:hover{border-color:var(--accent);}
+.preview-img{width:100%;max-height:90px;object-fit:contain;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg-card);padding:4px;margin-top:8px;}
+.img-container{width:100%;height:360px;background:#111;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+#cropImg{display:block;max-width:100%;max-height:100%;}
+</style>
+{% endblock %}
+{% block content %}
+<div style="max-width:700px;">
+  <a href="{{ url_for('superadmin.dashboard') }}" class="btn btn-outline-secondary btn-sm mb-3"><i class="ph ph-arrow-left me-1"></i> Back</a>
+  <h4 class="fw-bold mb-1">{{ title }}</h4>
+  <p style="color:var(--text-muted);font-size:.78rem;margin-bottom:24px;">Fill all fields. Password can be left blank when editing (keeps existing).</p>
+
+  <form method="POST" enctype="multipart/form-data">
+    <!-- Basic Info -->
+    <div class="fsec">
+      <div class="fsec-head">
+        <div class="fsec-ico" style="background:var(--accent-pale);color:var(--accent);"><i class="ph ph-buildings"></i></div>
+        <div><p class="fsec-title">Agency Information</p><p class="fsec-sub">Basic details and login credentials</p></div>
+      </div>
+      <div class="row g-3">
+        <div class="col-md-6"><label class="form-label">Agency Name <span class="required">*</span></label><input type="text" name="agency_name" class="form-control" value="{{ agency.agency_name if agency else '' }}" required></div>
+        <div class="col-md-6"><label class="form-label">Director Name</label><input type="text" name="director_name" class="form-control" value="{{ agency.director_name if agency else '' }}"></div>
+        <div class="col-md-6"><label class="form-label">Email <span class="required">*</span></label><input type="email" name="email" class="form-control" value="{{ agency.email if agency else '' }}" required></div>
+        <div class="col-md-6"><label class="form-label">Username <span class="required">*</span></label><input type="text" name="username" class="form-control" value="{{ agency.username if agency else '' }}" required></div>
+        <div class="col-md-6"><label class="form-label">Password {% if agency %}<span style="text-transform:none;font-weight:400;">(leave blank to keep)</span>{% else %}<span class="required">*</span>{% endif %}</label><input type="text" name="password" class="form-control" {% if not agency %}required{% endif %}></div>
+        <div class="col-md-6"><label class="form-label">Contact Number</label><input type="text" name="contact_number" class="form-control" value="{{ agency.contact_number if agency else '' }}"></div>
+        <div class="col-12"><label class="form-label">Agency Address</label><textarea name="agency_address" class="form-control" rows="2">{{ agency.agency_address if agency else '' }}</textarea></div>
+      </div>
+    </div>
+
+    <!-- Subscription -->
+    <div class="fsec">
+      <div class="fsec-head">
+        <div class="fsec-ico" style="background:#FFF3E0;color:#B05000;"><i class="ph ph-star"></i></div>
+        <div><p class="fsec-title">Subscription & Plan</p><p class="fsec-sub">Control features and expiry</p></div>
+      </div>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label">Plan <span class="required">*</span></label>
+          <select name="plan" class="form-select">
+            {% for p in plans %}
+            <option value="{{ p }}" {% if agency and agency.plan == p %}selected{% endif %}>
+              {{ 'Full (Client Mgmt + Docs)' if p == 'full' else 'Docs Only' }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Expires On</label>
+          <input type="date" name="expires_at" class="form-control" value="{{ agency.expires_at if agency and agency.expires_at else '' }}">
+          <div style="font-size:.7rem;color:var(--text-muted);margin-top:4px;">Leave blank = never expires</div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Status</label>
+          <select name="is_active" class="form-select">
+            <option value="true" {% if not agency or agency.is_active %}selected{% endif %}>Active</option>
+            <option value="false" {% if agency and not agency.is_active %}selected{% endif %}>Inactive</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Logo & Stamp -->
+    <div class="fsec">
+      <div class="fsec-head">
+        <div class="fsec-ico" style="background:#E8F5EC;color:#2D7A4A;"><i class="ph ph-image"></i></div>
+        <div><p class="fsec-title">Agency Logo & Stamp</p><p class="fsec-sub">Used in generated documents (PDF)</p></div>
+      </div>
+      <input type="hidden" name="logo_b64" id="logo_b64">
+      <input type="hidden" name="stamp_b64" id="stamp_b64">
+      <div class="row g-4">
+        <div class="col-md-6">
+          <div class="upload-zone" onclick="document.getElementById('logo_file').click()">
+            <label class="form-label mb-1">Agency Logo</label>
+            <p style="font-size:.72rem;color:var(--text-muted);margin:0 0 8px;">Square or landscape. Shown in document header.</p>
+            <input type="file" id="logo_file" class="crop-input" data-target="logo" data-ratio="NaN" accept="image/*" style="display:none;">
+            <div style="display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--text-muted);"><i class="ph ph-upload-simple"></i> Click to upload</div>
+            {% if agency and agency.logo_b64 %}
+            <img src="{{ agency.logo_b64 }}" class="preview-img" id="logo-preview">
+            {% else %}
+            <img class="preview-img" id="logo-preview" style="display:none;">
+            {% endif %}
+            <div id="logo-status" style="font-size:.7rem;color:var(--text-muted);margin-top:5px;">{% if agency and agency.logo_b64 %}Current logo loaded{% else %}Not uploaded{% endif %}</div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="upload-zone" onclick="document.getElementById('stamp_file').click()">
+            <label class="form-label mb-1">Agency Stamp / Seal</label>
+            <p style="font-size:.72rem;color:var(--text-muted);margin:0 0 8px;">Round or square stamp. Used in signature section.</p>
+            <input type="file" id="stamp_file" class="crop-input" data-target="stamp" data-ratio="1" accept="image/*" style="display:none;">
+            <div style="display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--text-muted);"><i class="ph ph-upload-simple"></i> Click to upload</div>
+            {% if agency and agency.stamp_b64 %}
+            <img src="{{ agency.stamp_b64 }}" class="preview-img" id="stamp-preview">
+            {% else %}
+            <img class="preview-img" id="stamp-preview" style="display:none;">
+            {% endif %}
+            <div id="stamp-status" style="font-size:.7rem;color:var(--text-muted);margin-top:5px;">{% if agency and agency.stamp_b64 %}Current stamp loaded{% else %}Not uploaded{% endif %}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-primary px-5"><i class="ph ph-floppy-disk me-1"></i> Save Agency</button>
+      <a href="{{ url_for('superadmin.dashboard') }}" class="btn btn-outline-secondary px-4">Cancel</a>
+    </div>
+  </form>
+</div>
+
+<!-- Crop Modal -->
+<div class="modal fade" id="cropModal" data-bs-backdrop="static">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0" style="background:var(--bg-card);">
+      <div class="modal-header border-0" style="background:var(--accent);">
+        <h5 class="modal-title text-white"><i class="ph ph-crop me-2"></i>Crop Image</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0"><div class="img-container"><img id="cropImg" alt=""></div></div>
+      <div class="modal-footer border-0" style="background:var(--bg-subtle);">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary px-4" id="cropBtn"><i class="ph ph-check me-1"></i> Crop & Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  let cropper=null,cropTarget='',cropRatio=NaN;
+  const cropModalEl=document.getElementById('cropModal');
+  const getCropModal=()=>bootstrap.Modal.getOrCreateInstance(cropModalEl);
+  const cropImg=document.getElementById('cropImg');
+  document.querySelectorAll('.crop-input').forEach(function(inp){
+    inp.addEventListener('change',function(){
+      if(!this.files||!this.files[0]) return;
+      cropTarget=this.dataset.target; cropRatio=parseFloat(this.dataset.ratio);
+      const r=new FileReader(); r.onload=e=>{cropImg.src=e.target.result;getCropModal().show();}; r.readAsDataURL(this.files[0]);
+    });
+  });
+  cropModalEl.addEventListener('shown.bs.modal',function(){
+    if(cropper){cropper.destroy();cropper=null;}
+    cropper=new Cropper(cropImg,{aspectRatio:cropRatio,viewMode:1,autoCropArea:.95});
+  });
+  cropModalEl.addEventListener('hidden.bs.modal',function(){if(cropper){cropper.destroy();cropper=null;}});
+  document.getElementById('cropBtn').addEventListener('click',function(){
+    if(!cropper) return;
+    const b64=cropper.getCroppedCanvas({maxWidth:800,imageSmoothingQuality:'high'}).toDataURL('image/jpeg',.9);
+    document.getElementById(cropTarget+'_b64').value=b64;
+    const pr=document.getElementById(cropTarget+'-preview'); if(pr){pr.src=b64;pr.style.display='block';}
+    const st=document.getElementById(cropTarget+'-status'); if(st) st.innerHTML='<i class="ph ph-check-circle" style="color:var(--accent);"></i> Image ready';
+    getCropModal().hide();
+  });
+});
+</script>
+{% endblock %}

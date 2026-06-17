@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% set brand_url = url_for('superadmin.dashboard') %}
+{% set nav_user = 'Superadmin' %}
+{% set nav_logout = url_for('superadmin.logout') %}
+{% block title %}{{ agency.agency_name }} Clients{% endblock %}
+{% block content %}
+<a href="{{ url_for('superadmin.dashboard') }}" class="btn btn-outline-secondary btn-sm mb-3"><i class="ph ph-arrow-left me-1"></i> Back</a>
+<h4 class="fw-bold mb-1">{{ agency.agency_name }} — Clients</h4>
+<p style="color:var(--text-muted);font-size:.78rem;margin-bottom:20px;">{{ clients|length }} total clients</p>
+<div class="table-wrap">
+  <table class="table mb-0">
+    <thead><tr><th>Name</th><th>Mobile</th><th>kW</th><th>Amount</th><th>Status</th><th>Created</th></tr></thead>
+    <tbody>
+      {% for c in clients %}
+      <tr>
+        <td><strong>{{ c.name }}</strong></td>
+        <td><span class="mono">{{ c.mobile }}</span></td>
+        <td>{{ c.kw_capacity or '—' }}</td>
+        <td>{% if c.final_amount %}₹{{ '{:,.0f}'.format(c.final_amount) }}{% else %}—{% endif %}</td>
+        <td><span class="chip chip-blue">{{ c.status }}</span></td>
+        <td style="font-size:.74rem;color:var(--text-muted);">{{ c.created_at[:10] if c.created_at else '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:36px;">No clients yet</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

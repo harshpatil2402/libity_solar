@@ -1,0 +1,38 @@
+# Security / Environment Variables
+.env
+.env.*
+!.env.example
+
+# Python / Flask
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+
+# App Specific (DO NOT UPLOAD THESE)
+wa_profile/
+*.pdf
+*.zip
+*.log
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS Generated Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

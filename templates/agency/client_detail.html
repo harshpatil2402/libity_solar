@@ -1,0 +1,411 @@
+{% extends "base.html" %}
+{% set brand_url = url_for('agency.dashboard') %}
+{% set nav_user = agency.agency_name %}
+{% set nav_logout = url_for('agency.logout') %}
+{% set nav_links = [
+  {'url': url_for('agency.dashboard'), 'icon': 'ph-squares-four', 'label': 'Dashboard', 'active': false, 'notif_count': 0},
+  {'url': url_for('agency.new_client'), 'icon': 'ph-user-plus', 'label': 'New Client', 'active': false, 'notif_count': 0},
+  {'url': url_for('agency.generate_page'), 'icon': 'ph-file-arrow-up', 'label': 'Generate Docs', 'active': false, 'notif_count': 0},
+  {'url': url_for('agency.history'), 'icon': 'ph-clock-clockwise', 'label': 'History', 'active': false, 'notif_count': 0},
+] %}
+{% block title %}{{ client.name }}{% endblock %}
+{% block head %}
+<style>
+  .page-hd{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:14px;}
+  .tl-wrap{display:flex;gap:0;overflow-x:auto;padding:3px 0;}
+  .tl-step{flex:1;min-width:66px;text-align:center;position:relative;}
+  .tl-step::after{content:'';position:absolute;top:12px;left:50%;right:-50%;height:2px;background:var(--border);z-index:0;}
+  .tl-step:last-child::after{display:none;}
+  .tl-dot{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;position:relative;z-index:1;transition:all .2s;}
+  .tl-dot.done{background:var(--accent);border:2px solid var(--accent);color:#fff;}
+  .tl-dot.cur{background:var(--bg-card);border:2px solid var(--accent);color:var(--accent);box-shadow:0 0 0 3px rgba(64,96,147,.2);}
+  .tl-dot.todo{background:var(--bg-subtle);border:2px solid var(--border);color:var(--text-light);}
+  .tl-label{font-size:8px;color:var(--text-muted);margin-top:4px;line-height:1.2;}
+  .tl-label.cur{color:var(--accent);font-weight:600;}
+  .action-bar{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:13px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+  .img-thumb{width:100%;height:88px;object-fit:contain;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg-subtle);padding:4px;}
+  .img-label{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);margin-bottom:5px;}
+  .toggle-hd{cursor:pointer;} .toggle-hd:hover{background:var(--bg-subtle);}
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="page-hd">
+  <div>
+    <a href="{{ url_for('agency.dashboard') }}" class="btn btn-outline-secondary btn-sm mb-2">
+      <i class="ph ph-arrow-left me-1"></i> Dashboard
+    </a>
+    <h4 class="fw-bold mb-1">{{ client.name }}</h4>
+    <div style="color:var(--text-muted);font-size:.82rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span><i class="ph ph-phone" style="font-size:12px;"></i> {{ client.mobile }}</span>
+      {% if client.city %}<span><i class="ph ph-map-pin" style="font-size:12px;"></i> {{ client.city }}</span>{% endif %}
+      {% if client.final_amount %}<span><i class="ph ph-currency-inr" style="font-size:12px;"></i> ₹{{ '{:,.0f}'.format(client.final_amount) }}</span>{% endif %}
+      {% if client.kw_capacity %}<span><i class="ph ph-lightning" style="font-size:12px;"></i> {{ client.kw_capacity }} kW</span>{% endif %}
+    </div>
+    <div class="mt-2">
+      <span class="chip" style="background:{{ status_colors.get(client.status,'#406093') }}18;color:{{ status_colors.get(client.status,'#406093') }};border:1px solid {{ status_colors.get(client.status,'#406093') }}33;">
+        <i class="ph ph-circle-fill" style="font-size:7px;"></i> {{ client.status }}
+      </span>
+    </div>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('agency.generate_page', client_id=client.id) }}" class="btn btn-primary btn-sm">
+      <i class="ph ph-file-arrow-up me-1"></i> Generate Docs
+    </a>
+    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#manualUploadModal">
+      <i class="ph ph-upload-simple me-1"></i> Manual Upload
+    </button>
+    <form method="POST" action="{{ url_for('agency.delete_client', client_id=client.id) }}"
+          onsubmit="return confirm('Delete {{ client.name }}?')">
+      <button class="btn btn-outline-danger btn-sm"><i class="ph ph-trash"></i></button>
+    </form>
+  </div>
+</div>
+
+<!-- Progress -->
+<div class="card p-3 mb-3">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <span style="font-weight:600;font-size:.84rem;">Project Progress</span>
+    <span style="font-size:.74rem;color:var(--text-muted);">{{ statuses.index(client.status) + 1 }}/{{ statuses|length }} stages</span>
+  </div>
+  <div class="progress mb-3" style="height:4px;">
+    <div class="progress-bar" style="width:{{ ((statuses.index(client.status)) / (statuses|length - 1) * 100)|int }}%;"></div>
+  </div>
+  <div class="tl-wrap">
+    {% set icons = ['🌱','📤','✅','📄','🌐','🏛️','🔧','📸','📬','🏆'] %}
+    {% for s in statuses %}{% set si = loop.index0 %}{% set ci = statuses.index(client.status) %}
+    <div class="tl-step">
+      <div class="tl-dot {% if si < ci %}done{% elif si == ci %}cur{% else %}todo{% endif %}">
+        {% if si < ci %}<i class="ph ph-check" style="font-size:9px;"></i>{% else %}{{ icons[si] if si < icons|length else '·' }}{% endif %}
+      </div>
+      <div class="tl-label {% if si == ci %}cur{% endif %}">{{ s[:10] }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Status update -->
+<div class="action-bar">
+  <div><div style="font-size:.82rem;font-weight:600;">Update Status</div></div>
+  <form method="POST" action="{{ url_for('agency.update_status', client_id=client.id) }}" class="d-flex gap-2">
+    <select name="status" class="form-select form-select-sm" style="width:200px;">
+      {% for s in statuses %}<option value="{{ s }}" {% if client.status==s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+    </select>
+    <button class="btn btn-primary btn-sm px-3">Update</button>
+  </form>
+</div>
+
+<!-- Phase 1: Client Info -->
+<div class="fsec">
+  <div class="fsec-head toggle-hd" onclick="tog('p1','a1')">
+    <div class="fsec-ico" style="background:var(--accent-pale);color:var(--accent);"><i class="ph ph-user"></i></div>
+    <div><p class="fsec-title">Client Information</p><p class="fsec-sub">Basic details entered by agency</p></div>
+    <i class="ph ph-caret-down ms-auto" id="a1"></i>
+  </div>
+  <div id="p1" style="display:none;">
+    <div class="row g-3">
+      {% for label, val in [('Name', client.name), ('Mobile', client.mobile), ('Consumer No.', client.consumer_number or '—'), ('City', client.city or '—'), ('kW Capacity', (client.kw_capacity|string + ' kW') if client.kw_capacity else '—'), ('Final Amount', ('₹' + '{:,.0f}'.format(client.final_amount)) if client.final_amount else '—')] %}
+      <div class="col-md-4">
+        <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);font-weight:600;margin-bottom:3px;">{{ label }}</div>
+        <div style="font-size:.88rem;">{{ val }}</div>
+      </div>
+      {% endfor %}
+      {% if client.address %}
+      <div class="col-12">
+        <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);font-weight:600;margin-bottom:3px;">Address</div>
+        <div style="font-size:.88rem;">{{ client.address }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Phase 2: Info Collection Link -->
+<div class="fsec">
+  <div class="fsec-head toggle-hd" onclick="tog('p2','a2')">
+    <div class="fsec-ico" style="background:#FFF3E0;color:#B05000;"><i class="ph ph-link"></i></div>
+    <div>
+      <p class="fsec-title">Phase 2 — Info Collection Link</p>
+      <p class="fsec-sub">Send client a link to upload Aadhaar, PAN, cheque photo and signature</p>
+    </div>
+    <i class="ph ph-caret-down ms-auto" id="a2"></i>
+  </div>
+  <div id="p2" style="display:none;">
+    {% if submission and submission.status == 'submitted' %}
+    <!-- Already submitted — show images -->
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--success-pale);border:1px solid #A8DCA0;border-radius:var(--radius);margin-bottom:16px;font-size:.82rem;color:#2D7A4A;">
+      <i class="ph ph-check-circle"></i> Client submitted on {{ submission.submitted_at[:10] if submission.submitted_at else 'unknown date' }}
+    </div>
+    <div class="row g-3">
+      {% for label, key in [('Aadhaar Card','aadhar_b64'),('PAN Card','pan_b64'),('Cheque Photo','cheque_b64'),('Signature','signature_b64')] %}
+      <div class="col-md-3">
+        <div class="img-label">{{ label }}</div>
+        {% if submission[key] %}
+        <img src="{{ submission[key] }}" class="img-thumb" onclick="window.open('{{ submission[key] }}','_blank')" style="cursor:zoom-in;" title="Click to enlarge">
+        {% else %}
+        <div style="width:100%;height:88px;border-radius:var(--radius);border:1px dashed var(--border);background:var(--bg-subtle);display:flex;align-items:center;justify-content:center;font-size:.72rem;color:var(--text-light);">Not uploaded</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% elif submission and submission.status == 'pending' %}
+    <div style="padding:12px 14px;background:var(--warn-pale);border:1px solid var(--warn);border-radius:var(--radius);margin-bottom:14px;font-size:.82rem;color:var(--warn);display:flex;align-items:center;gap:8px;">
+      <i class="ph ph-clock"></i> Link sent — waiting for client to submit.
+    </div>
+    <div style="font-size:.8rem;margin-bottom:8px;color:var(--text-muted);">Share this link with client via WhatsApp / copy:</div>
+    <div style="background:var(--bg-subtle);border:1.5px solid var(--accent);border-radius:var(--radius);padding:11px 14px;font-family:monospace;font-size:.78rem;color:var(--accent);word-break:break-all;margin-bottom:10px;user-select:all;" id="clientLink">{{ base_url }}/collect/{{ submission.token }}</div>
+    <div class="d-flex gap-2 flex-wrap">
+      <button onclick="copyLink()" class="btn btn-outline-primary btn-sm"><i class="ph ph-copy me-1"></i> Copy Link</button>
+      <button onclick="openWhatsApp()" class="btn btn-success btn-sm"><i class="ph ph-whatsapp-logo me-1"></i> Open in WhatsApp Web</button>
+    </div>
+    {% else %}
+    <form method="POST" action="{{ url_for('agency.send_collection_link', client_id=client.id) }}">
+      <div style="font-size:.82rem;color:var(--text-muted);margin-bottom:14px;">
+        Client will receive an SMS with a link to upload their documents and sign the agreement for
+        <strong style="color:var(--text);">₹{{ '{:,.0f}'.format(client.final_amount) if client.final_amount else '—' }}</strong>.
+      </div>
+      <button class="btn btn-primary"><i class="ph ph-paper-plane-tilt me-1"></i> Send Info Collection Link</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Phase 3: Generate Documents -->
+<div class="fsec">
+  <div class="fsec-head toggle-hd" onclick="tog('p3','a3')">
+    <div class="fsec-ico" style="background:#E8F5EC;color:#2D7A4A;"><i class="ph ph-file-pdf"></i></div>
+    <div><p class="fsec-title">Phase 3 — Generate Documents</p><p class="fsec-sub">Auto-fills Aadhaar + signature from client submission</p></div>
+    <i class="ph ph-caret-down ms-auto" id="a3"></i>
+  </div>
+  <div id="p3" style="display:none;">
+    {% if submission and submission.status == 'submitted' %}
+    <div style="background:var(--accent-pale);border:1.5px solid var(--accent);border-radius:var(--radius-lg);padding:18px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div>
+        <div style="font-weight:700;font-size:.9rem;color:var(--accent);">Client info collected ✓</div>
+        <div style="font-size:.76rem;color:var(--text-muted);margin-top:2px;">Aadhaar and signature will be auto-inserted into PDFs.</div>
+      </div>
+      <a href="{{ url_for('agency.generate_page', client_id=client.id) }}" class="btn btn-primary">
+        <i class="ph ph-file-arrow-up me-1"></i> Generate Documents →
+      </a>
+    </div>
+    {% else %}
+    <div style="padding:14px;background:var(--warn-pale);border:1px solid var(--warn);border-radius:var(--radius);font-size:.82rem;color:var(--warn);display:flex;align-items:center;gap:8px;">
+      <i class="ph ph-warning"></i> Send the info collection link first and wait for client to submit before generating documents.
+    </div>
+    <div class="mt-3">
+      <a href="{{ url_for('agency.generate_page', client_id=client.id) }}" class="btn btn-outline-secondary btn-sm">
+        Generate Anyway (manual entry)
+      </a>
+    </div>
+    {% endif %}
+    {% if doc_jobs %}
+    <hr style="border-color:var(--border);margin:16px 0;">
+    <div style="font-size:.76rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);margin-bottom:10px;">Previous Generations</div>
+    {% for job in doc_jobs %}
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg-subtle);border-radius:var(--radius);border:1px solid var(--border);margin-bottom:6px;font-size:.8rem;">
+      <span><span class="mono">{{ job.id[:8] }}…</span> &nbsp;·&nbsp; {{ job.created_at[:10] if job.created_at else '—' }}</span>
+      <span class="chip {% if job.status=='done' %}chip-green{% elif job.status=='error' %}chip-red{% else %}chip-amber{% endif %}">{{ job.status }}</span>
+    </div>
+    {% endfor %}
+    {% endif %}
+  </div>
+</div>
+
+<!-- Phase 4: GPS Photos -->
+<div class="fsec">
+  <div class="fsec-head toggle-hd" onclick="tog('p4','a4')">
+    <div class="fsec-ico" style="background:#FFF3E0;color:#B05000;"><i class="ph ph-camera"></i></div>
+    <div><p class="fsec-title">Phase 4 — GPS Photo</p><p class="fsec-sub">Send link for auto geo-tagged installation photo</p></div>
+    <i class="ph ph-caret-down ms-auto" id="a4"></i>
+  </div>
+  <div id="p4" style="display:none;">
+    <form method="POST" action="{{ url_for('agency.send_gps_link', client_id=client.id) }}" class="mb-3">
+      <button class="btn btn-primary btn-sm"><i class="ph ph-paper-plane-tilt me-1"></i> Send GPS Photo Link</button>
+    </form>
+    {% if gps_pending %}
+    <div style="padding:12px 14px;background:var(--warn-pale);border:1px solid var(--warn);border-radius:var(--radius);margin-bottom:14px;font-size:.82rem;color:var(--warn);display:flex;align-items:center;gap:8px;">
+      <i class="ph ph-clock"></i> Link sent — waiting for client to submit GPS photo.
+    </div>
+    <div style="font-size:.8rem;margin-bottom:8px;color:var(--text-muted);">Share this GPS link with client via WhatsApp / copy:</div>
+    <div style="background:var(--bg-subtle);border:1.5px solid var(--accent);border-radius:var(--radius);padding:11px 14px;font-family:monospace;font-size:.78rem;color:var(--accent);word-break:break-all;margin-bottom:10px;user-select:all;" id="gpsLink">{{ base_url }}/gps/{{ gps_pending.token }}</div>
+    <div class="d-flex gap-2 flex-wrap mb-3">
+      <button onclick="copyGpsLink()" class="btn btn-outline-primary btn-sm"><i class="ph ph-copy me-1"></i> Copy Link</button>
+    </div>
+    {% endif %}
+    {% if gps_photos %}
+    <div class="row g-2 mt-1">
+      {% for photo in gps_photos %}
+      <div class="col-md-3">
+        <div style="border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);">
+          <img src="{{ photo.photo_b64 }}" style="width:100%;height:100px;object-fit:cover;display:block;" onerror="this.style.display='none'">
+          <div style="padding:5px 8px;background:var(--bg-subtle);font-size:.68rem;color:var(--text-muted);">
+            {% if photo.latitude %}📍 {{ '%.4f'|format(photo.latitude) }}, {{ '%.4f'|format(photo.longitude) }}{% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p style="font-size:.8rem;color:var(--text-muted);">No GPS photos received yet.</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Phase 5: Portal & Completion -->
+<div class="fsec">
+  <div class="fsec-head toggle-hd" onclick="tog('p5','a5')">
+    <div class="fsec-ico" style="background:#E8F0FE;color:#2050B0;"><i class="ph ph-globe"></i></div>
+    <div><p class="fsec-title">Phase 5 — Portal & Completion</p><p class="fsec-sub">Portal registration, sanction, and project close</p></div>
+    <i class="ph ph-caret-down ms-auto" id="a5"></i>
+  </div>
+  <div id="p5" style="display:none;">
+    <div class="d-flex gap-2 flex-wrap">
+      {% for label, status, icon, cls in [
+        ('Mark Portal Applied', 'Portal Applied', 'ph-globe', 'btn-outline-primary'),
+        ('Mark Sanctioned', 'Sanctioned', 'ph-bank', 'btn-outline-primary'),
+        ('Mark Installation Done', 'Installation Done', 'ph-wrench', 'btn-outline-primary'),
+        ('Mark Final Submission', 'Final Submission Done', 'ph-rocket-launch', 'btn-outline-primary'),
+        ('Mark Completed', 'Completed', 'ph-trophy', 'btn-success'),
+      ] %}
+      <form method="POST" action="{{ url_for('agency.update_status', client_id=client.id) }}">
+        <input type="hidden" name="status" value="{{ status }}">
+        <button class="btn {{ cls }} btn-sm"><i class="ph {{ icon }} me-1"></i> {{ label }}</button>
+      </form>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Manual Upload Modal -->
+<div class="modal fade" id="manualUploadModal" tabindex="-1" aria-labelledby="manualUploadLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--accent);padding:14px 18px;">
+        <h5 class="modal-title text-white" style="font-size:.92rem;" id="manualUploadLabel">
+          <i class="ph ph-upload-simple me-2"></i> Manual Document Upload — {{ client.name }}
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('agency.manual_upload', client_id=client.id) }}" enctype="multipart/form-data">
+        <div class="modal-body" style="padding:20px 22px;">
+          <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:18px;">
+            Upload documents on the client's behalf. All fields are optional — only upload what you have.
+          </p>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label style="font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);display:block;margin-bottom:5px;">Aadhaar Card</label>
+              <input type="file" name="aadhar" class="form-control form-control-sm" accept="image/*">
+            </div>
+            <div class="col-md-6">
+              <label style="font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);display:block;margin-bottom:5px;">PAN Card</label>
+              <input type="file" name="pan" class="form-control form-control-sm" accept="image/*">
+            </div>
+            <div class="col-md-6">
+              <label style="font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);display:block;margin-bottom:5px;">Cheque Photo</label>
+              <input type="file" name="cheque" class="form-control form-control-sm" accept="image/*">
+            </div>
+            <div class="col-md-6">
+              <label style="font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);display:block;margin-bottom:5px;">Signature</label>
+              <input type="file" name="signature" class="form-control form-control-sm" accept="image/*">
+            </div>
+            <div class="col-12">
+              <hr style="border-color:var(--border);margin:6px 0 14px;">
+              <label style="font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);display:block;margin-bottom:5px;">GPS / Installation Photo</label>
+              <input type="file" name="gps_photo" class="form-control form-control-sm" accept="image/*">
+            </div>
+          </div>
+          <div style="margin-top:16px;padding:10px 13px;background:var(--accent-pale);border-radius:var(--radius);font-size:.76rem;color:var(--accent);line-height:1.6;">
+            <i class="ph ph-info me-1"></i>
+            Uploading any doc (Aadhaar / PAN / Cheque / Signature) → status set to <strong>Info Collected</strong>.<br>
+            Uploading a GPS photo → status additionally set to <strong>GPS Photos Received</strong>.
+          </div>
+        </div>
+        <div class="modal-footer" style="border-color:var(--border);">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-sm px-4">
+            <i class="ph ph-upload-simple me-1"></i> Upload
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+function tog(id, aid) {
+  var el = document.getElementById(id);
+  var ar = document.getElementById(aid);
+  if (!el) return;
+  var hidden = el.style.display === 'none';
+  el.style.display = hidden ? 'block' : 'none';
+  if (ar) ar.className = hidden ? 'ph ph-caret-up ms-auto' : 'ph ph-caret-down ms-auto';
+}
+
+function openSection(id, aid) {
+  var el = document.getElementById(id);
+  var ar = document.getElementById(aid);
+  if (el) el.style.display = 'block';
+  if (ar) ar.className = 'ph ph-caret-up ms-auto';
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  ['p1', 'p2', 'p3', 'p4', 'p5'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  var st = {{ client.status | tojson }};
+  if (st === 'New Lead')                                          openSection('p1', 'a1');
+  else if (st === 'Link Sent')                                    openSection('p2', 'a2');
+  else if (st === 'Info Collected' || st === 'Documents Generated') openSection('p3', 'a3');
+  else if (st === 'GPS Photos Received')                          openSection('p4', 'a4');
+  else                                                            openSection('p5', 'a5');
+});
+
+function copyLink() {
+  var el = document.getElementById('clientLink');
+  if (el) {
+    navigator.clipboard.writeText(el.textContent.trim()).then(function () { alert('Link copied!'); });
+  }
+}
+
+function copyGpsLink() {
+  var el = document.getElementById('gpsLink');
+  if (el) {
+    navigator.clipboard.writeText(el.textContent.trim()).then(function () { alert('GPS link copied!'); });
+  }
+}
+
+function openWhatsApp() {
+  var linkEl = document.getElementById('clientLink');
+  if (!linkEl) return;
+  var link   = linkEl.textContent.trim();
+  var mobile = {{ client.mobile | tojson }};
+  var name   = {{ client.name | tojson }};
+  var amount = {{ client.final_amount | tojson }};
+  var kw     = {{ client.kw_capacity | tojson }};
+  var agency = {{ agency.agency_name | tojson }};
+
+  var english =
+    'Dear ' + name + ',\n\n' +
+    agency + ' has sent you a link to complete your solar installation documents.\n' +
+    (kw     ? 'Solar System: ' + kw + ' kW\n' : '') +
+    (amount ? 'Agreement Amount: ₹' + parseInt(amount).toLocaleString('en-IN') + '\n' : '') +
+    '\nPlease upload your Aadhaar, PAN, cheque photo and signature here:\n' +
+    link + '\n\nLink is valid for 72 hours.';
+
+  var marathi =
+    '\n---\n' +
+    'प्रिय ' + name + ',\n\n' +
+    agency + ' यांनी तुम्हाला सौर ऊर्जा इंस्टॉलेशनसाठी कागदपत्रे भरण्याचा लिंक पाठवला आहे.\n' +
+    (kw     ? 'सोलर सिस्टम: ' + kw + ' kW\n' : '') +
+    (amount ? 'करार रक्कम: ₹' + parseInt(amount).toLocaleString('en-IN') + '\n' : '') +
+    '\nخालील लिंकवर आधार, पॅन, रद्द केलेला चेक आणि स्वाक्षरी अपलोड करा:\n' +
+    link + '\n\nहा लिंक १२ तासांसाठी वैध आहे.';
+
+  var msg = english + marathi;
+  window.open('https://web.whatsapp.com/send?phone=91' + mobile + '&text=' + encodeURIComponent(msg), '_blank');
+}
+</script>
+{% endblock %}

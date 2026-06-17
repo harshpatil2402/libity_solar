@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% set brand_url = url_for('agency.dashboard') %}
+{% set nav_user = agency.agency_name %}
+{% set nav_logout = url_for('agency.logout') %}
+{% set nav_links = [
+  {'url': url_for('agency.dashboard'), 'icon': 'ph-squares-four', 'label': 'Dashboard', 'active': false, 'notif_count': 0},
+  {'url': url_for('agency.new_client'), 'icon': 'ph-user-plus', 'label': 'New Client', 'active': false, 'notif_count': 0},
+  {'url': url_for('agency.generate_page'), 'icon': 'ph-file-arrow-up', 'label': 'Generate Docs', 'active': false, 'notif_count': 0},
+  {'url': url_for('agency.history'), 'icon': 'ph-clock-clockwise', 'label': 'History', 'active': true, 'notif_count': 0},
+] %}
+{% block title %}Document History{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+  <div>
+    <h4 class="fw-bold mb-0">Document History</h4>
+    <p style="color:var(--text-muted);font-size:.76rem;margin:3px 0 0;">All previously generated document sets</p>
+  </div>
+  <a href="{{ url_for('agency.generate_page') }}" class="btn btn-primary btn-sm">
+    <i class="ph ph-plus me-1"></i> New Generation
+  </a>
+</div>
+
+{% if doc_jobs %}
+<div class="table-wrap">
+  <table class="table mb-0">
+    <thead><tr><th>Job ID</th><th>Consumer</th><th>Documents</th><th>Status</th><th>Generated</th><th></th></tr></thead>
+    <tbody>
+      {% for job in doc_jobs %}
+      <tr>
+        <td><span class="mono">{{ job.id[:8] }}…</span></td>
+        <td><strong>{{ job.consumer_name or '—' }}</strong><br><span style="font-size:.7rem;color:var(--text-muted);">{{ job.consumer_number or '' }}</span></td>
+        <td>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;">
+            {% for d in ['Commissioning','Meter Testing','Model Agreement','Net Metering','Work Completion'] %}
+            <span class="chip chip-subtle" style="font-size:.66rem;">{{ d }}</span>
+            {% endfor %}
+          </div>
+        </td>
+        <td>
+          {% if job.status=='done' %}<span class="chip chip-green"><i class="ph ph-check-circle" style="font-size:9px;"></i> Done</span>
+          {% elif job.status=='error' %}<span class="chip chip-red"><i class="ph ph-warning-circle" style="font-size:9px;"></i> Error</span>
+          {% else %}<span class="chip chip-amber"><i class="ph ph-clock" style="font-size:9px;"></i> {{ job.status }}</span>{% endif %}
+        </td>
+        <td style="font-size:.75rem;color:var(--text-muted);">{{ job.created_at[:16].replace('T',' ') if job.created_at else '—' }}</td>
+        <td>
+          {% if job.status=='done' %}
+          <a href="{{ url_for('agency.download_history', jid=job.id) }}" class="btn btn-outline-primary btn-sm">
+            <i class="ph ph-download-simple me-1"></i> Download
+          </a>
+          {% else %}<span style="font-size:.76rem;color:var(--text-muted);">N/A</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div style="text-align:center;padding:56px 20px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);">
+  <i class="ph ph-file-pdf" style="font-size:44px;color:var(--text-light);display:block;margin-bottom:10px;"></i>
+  <div style="font-weight:600;color:var(--text-muted);margin-bottom:8px;">No documents generated yet</div>
+  <a href="{{ url_for('agency.generate_page') }}" class="btn btn-primary btn-sm">
+    <i class="ph ph-file-arrow-up me-1"></i> Generate First Set
+  </a>
+</div>
+{% endif %}
+{% endblock %}

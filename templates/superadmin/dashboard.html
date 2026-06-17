@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% set brand_url = url_for('superadmin.dashboard') %}
+{% set nav_user = 'Superadmin' %}
+{% set nav_logout = url_for('superadmin.logout') %}
+{% set nav_links = [
+  {'url': url_for('superadmin.dashboard'), 'icon': 'ph-squares-four', 'label': 'Agencies', 'active': true},
+  {'url': url_for('superadmin.new_agency'), 'icon': 'ph-plus-circle', 'label': 'New Agency', 'active': false},
+] %}
+{% block title %}Superadmin — Agencies{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+  <div>
+    <h4 class="fw-bold mb-0">Agency Management</h4>
+    <p style="color:var(--text-muted);font-size:.78rem;margin:3px 0 0;">Manage all solar agency accounts and subscriptions</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('superadmin.export_csv') }}" class="btn btn-outline-secondary btn-sm"><i class="ph ph-download-simple me-1"></i> Export CSV</a>
+    <a href="{{ url_for('superadmin.new_agency') }}" class="btn btn-primary"><i class="ph ph-plus me-1"></i> New Agency</a>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="row g-3 mb-4">
+  {% for label, val, ico, col in [
+    ('Total Agencies', total, 'ph-buildings', 'var(--accent)'),
+    ('Active', active, 'ph-check-circle', '#2D7A4A'),
+    ('Inactive/Expired', total - active, 'ph-warning', 'var(--warn)'),
+  ] %}
+  <div class="col-md-4">
+    <div class="card p-3 d-flex flex-row align-items-center gap-3">
+      <div style="width:40px;height:40px;border-radius:9px;background:var(--bg-subtle);display:flex;align-items:center;justify-content:center;"><i class="ph {{ ico }}" style="font-size:18px;color:{{ col }};"></i></div>
+      <div><div style="font-size:1.5rem;font-weight:700;color:{{ col }};">{{ val }}</div><div style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;">{{ label }}</div></div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Agency Table -->
+<div class="table-wrap">
+  <table class="table mb-0">
+    <thead><tr>
+      <th>Agency</th><th>Username</th><th>Plan</th><th>Expires</th><th>Status</th><th>Clients</th><th>Actions</th>
+    </tr></thead>
+    <tbody>
+      {% for a in agencies %}
+      <tr>
+        <td>
+          <div class="d-flex align-items-center gap-2">
+            {% if a.logo_b64 %}
+            <img src="{{ a.logo_b64 }}" style="width:32px;height:32px;border-radius:7px;object-fit:contain;border:1px solid var(--border);">
+            {% else %}
+            <div style="width:32px;height:32px;border-radius:7px;background:var(--accent-pale);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:var(--accent);">{{ a.agency_name[0] }}</div>
+            {% endif %}
+            <div>
+              <div style="font-weight:600;font-size:.88rem;">{{ a.agency_name }}</div>
+              <div style="font-size:.7rem;color:var(--text-muted);">{{ a.email }}</div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <span class="mono">{{ a.username }}</span>
+          <div style="font-size:.67rem;margin-top:3px;">
+            <a href="{{ base_url }}/login/{{ a.username }}" target="_blank" style="color:var(--text-muted);text-decoration:underline dotted;" title="Agency login slug">/login/{{ a.username }}</a>
+          </div>
+        </td>
+        <td>
+          {% if a.plan == 'full' %}
+          <span class="chip chip-blue"><i class="ph ph-star" style="font-size:9px;"></i> Full</span>
+          {% else %}
+          <span class="chip chip-subtle"><i class="ph ph-file-pdf" style="font-size:9px;"></i> Docs Only</span>
+          {% endif %}
+        </td>
+        <td style="font-size:.8rem;color:{% if a.expires_at and a.expires_at < today %}var(--danger){% else %}var(--text-muted){% endif %};">
+          {{ a.expires_at or '∞ Never' }}
+        </td>
+        <td>
+          {% if a.is_active %}
+          <span class="chip chip-green"><i class="ph ph-circle-fill" style="font-size:8px;"></i> Active</span>
+          {% else %}
+          <span class="chip chip-red"><i class="ph ph-circle-fill" style="font-size:8px;"></i> Inactive</span>
+          {% endif %}
+        </td>
+        <td><a href="{{ url_for('superadmin.agency_clients', agency_id=a.id) }}" class="btn btn-outline-secondary btn-sm"><i class="ph ph-users me-1"></i> View</a></td>
+        <td>
+          <div class="d-flex gap-1">
+            <a href="{{ url_for('superadmin.edit_agency', agency_id=a.id) }}" class="btn btn-outline-primary btn-sm"><i class="ph ph-pencil"></i></a>
+            <button class="btn btn-outline-success btn-sm" title="Send credentials via WhatsApp"
+              onclick="sendCredsWA('{{ a.contact_number }}','{{ a.username }}','{{ a.password }}','{{ base_url }}/login/{{ a.username }}')">
+              <i class="ph ph-whatsapp-logo"></i>
+            </button>
+            <form method="POST" action="{{ url_for('superadmin.toggle_agency', agency_id=a.id) }}" class="m-0">
+              <button class="btn btn-sm {% if a.is_active %}btn-outline-danger{% else %}btn-outline-secondary{% endif %}" title="Toggle active">
+                <i class="ph {% if a.is_active %}ph-pause{% else %}ph-play{% endif %}"></i>
+              </button>
+            </form>
+            <form method="POST" action="{{ url_for('superadmin.delete_agency', agency_id=a.id) }}" class="m-0" onsubmit="return confirm('Delete {{ a.agency_name }}? This removes all their clients.')">
+              <button class="btn btn-outline-danger btn-sm"><i class="ph ph-trash"></i></button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted);">No agencies yet. <a href="{{ url_for('superadmin.new_agency') }}">Create one →</a></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const today = '{{ today }}';
+function sendCredsWA(mobile, username, password, loginLink) {
+  if (!mobile) { alert('No contact number for this agency. Edit the agency and add one first.'); return; }
+  var msg = 'Hello!\nYour LibityInfotech Solar Portal credentials:\nUsername: ' + username + '\nPassword: ' + password + '\n\nLogin here:\n' + loginLink + '\n\n— LibityInfotech Solar';
+  window.open('https://wa.me/91' + mobile.replace(/[^0-9]/g,'') + '?text=' + encodeURIComponent(msg), '_blank');
+}
+</script>
+{% endblock %}

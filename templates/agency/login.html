@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Agency Login — LibityInfotech Solar</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23406093'/%3E%3Ccircle cx='16' cy='13' r='5' fill='%23FFF799'/%3E%3C/svg%3E">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/@phosphor-icons/web@2.1.1/src/index.js" defer></script>
+  <style>
+    :root{--bg:#FAF8F0;--card:#fff;--border:#C8D6E8;--text:#1A2A3A;--muted:#5A6A7A;--accent:#406093;--accent-hover:#2E4A73;--accent-pale:#E8F0F8;--danger:#B03030;--danger-pale:#FDECEA;--radius:9px;}
+    [data-theme="dark"]{--bg:#0F1520;--card:#172030;--border:#253550;--text:#C8D8E8;--muted:#7090A8;--accent:#4C8CE4;--accent-hover:#3A72CC;--accent-pale:#1A2A40;--danger:#D06060;--danger-pale:#2E1818;}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Inter',sans-serif;background-color:var(--bg);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='70' height='70'%3E%3Ccircle cx='35' cy='35' r='8' fill='none' stroke='%23C8D6E8' stroke-width='1.2'/%3E%3Cline x1='35' y1='22' x2='35' y2='18' stroke='%23C8D6E8' stroke-width='1.2' stroke-linecap='round'/%3E%3Cline x1='43' y1='27' x2='46' y2='24' stroke='%23C8D6E8' stroke-width='1.2' stroke-linecap='round'/%3E%3Cline x1='48' y1='35' x2='52' y2='35' stroke='%23C8D6E8' stroke-width='1.2' stroke-linecap='round'/%3E%3Cline x1='43' y1='43' x2='46' y2='46' stroke='%23C8D6E8' stroke-width='1.2' stroke-linecap='round'/%3E%3Cline x1='35' y1='48' x2='35' y2='52' stroke='%23C8D6E8' stroke-width='1.2' stroke-linecap='round'/%3E%3Cline x1='27' y1='43' x2='24' y2='46' stroke='%23C8D6E8' stroke-width='1.2' stroke-linecap='round'/%3E%3Cline x1='22' y1='35' x2='18' y2='35' stroke='%23C8D6E8' stroke-width='1.2' stroke-linecap='round'/%3E%3Cline x1='27' y1='27' x2='24' y2='24' stroke='%23C8D6E8' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E");background-size:70px 70px;color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+    .wrap{width:100%;max-width:400px;}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:38px 36px;box-shadow:0 2px 14px rgba(64,96,147,.10);}
+    .brand{display:flex;align-items:center;gap:11px;margin-bottom:28px;}
+    .brand-box{width:46px;height:46px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+    .brand-box img{width:40px;height:40px;object-fit:contain;padding:2px;}
+    .brand-name{font-weight:700;font-size:1.05rem;color:var(--accent);}
+    .brand-sub{font-size:.72rem;color:var(--muted);}
+    h2{font-size:1.1rem;font-weight:700;margin-bottom:4px;}
+    .sub{color:var(--muted);font-size:.82rem;margin-bottom:24px;}
+    label{display:block;font-size:.74rem;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:6px;}
+    input{width:100%;background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);padding:10px 13px;color:var(--text);font-size:.9rem;font-family:'Inter',sans-serif;transition:border-color .13s;margin-bottom:14px;}
+    input:focus{outline:none;border-color:#4C8CE4;box-shadow:0 0 0 3px rgba(76,140,228,.15);}
+    .btn{width:100%;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:11px;font-size:.9rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:background .13s;margin-top:6px;}
+    .btn:hover{background:var(--accent-hover);}
+    .err{background:var(--danger-pale);border:1px solid var(--danger);color:var(--danger);border-radius:var(--radius);padding:10px 13px;font-size:.82rem;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+    .theme-btn{position:fixed;top:16px;right:16px;width:34px;height:34px;border:1px solid var(--border);background:var(--card);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);}
+  </style>
+</head>
+<body>
+<button class="theme-btn" id="themeBtn"><i class="ph ph-moon" id="themeIco"></i></button>
+<div class="wrap">
+  <div class="card">
+    <div class="brand">
+      <div class="brand-box">
+        <img src="{{ url_for('static', filename='images/libitylogo.png') }}" alt="L" onerror="this.style.display='none'">
+      </div>
+      <div><div class="brand-name">LibityInfotech Solar</div><div class="brand-sub">Agency Portal</div></div>
+    </div>
+    <h2>Sign in</h2>
+    <p class="sub">Enter your agency credentials</p>
+    {% if err %}<div class="err"><i class="ph ph-warning-circle"></i> {{ err }}</div>{% endif %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}<div class="err"><i class="ph ph-warning-circle"></i> {{ msg }}</div>{% endfor %}
+    {% endwith %}
+    <form method="POST" action="{{ url_for('agency.login') }}">
+      <div><label>Username</label><input type="text" name="username" autofocus required value="{{ prefilled_username | default('') }}"></div>
+      <div><label>Password</label><input type="password" name="password" required></div>
+      <button type="submit" class="btn"><i class="ph ph-sign-in"></i> Sign In</button>
+    </form>
+  </div>
+</div>
+<div style="text-align:center;margin-top:20px;font-size:.72rem;color:#8A9AB0;line-height:1.8;">
+  <strong style="color:#6A7A9A;">Libity Infotech</strong> &mdash; Solar Installation Management Platform<br>
+  Digitizing documentation workflows for solar agencies across India.
+</div>
+</div>
+<script>
+(function(){document.documentElement.setAttribute('data-theme',localStorage.getItem('sd_theme')||'light');})();
+const btn=document.getElementById('themeBtn'),ico=document.getElementById('themeIco');
+function sync(){ico.className=document.documentElement.getAttribute('data-theme')==='dark'?'ph ph-sun':'ph ph-moon';}
+sync();
+btn.addEventListener('click',function(){const d=document.documentElement.getAttribute('data-theme')==='dark';document.documentElement.setAttribute('data-theme',d?'light':'dark');localStorage.setItem('sd_theme',d?'light':'dark');sync();});
+</script>
+</body></html>
