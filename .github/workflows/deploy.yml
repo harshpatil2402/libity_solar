@@ -17,8 +17,10 @@ jobs:
           key: ${{ secrets.DROPLET_SSH_KEY }}
           script: |
             cd ~/libity_solar
-            # Pull the new code
-            git pull origin main
+            
+            # Force the server to match GitHub exactly (ignores manual server edits)
+            git fetch origin
+            git reset --hard origin/main
             
             # Rebuild the Docker image
             docker build -t libity_solar_app .
@@ -30,5 +32,5 @@ jobs:
             # Start the newly updated website
             docker run -d -p 80:5000 --name solar_saas --restart unless-stopped libity_solar_app
             
-            # Clean up old unused images so your server's hard drive doesn't get full
+            # Clean up old unused images
             docker system prune -af
