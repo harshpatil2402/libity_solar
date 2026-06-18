@@ -77,21 +77,11 @@ def render_pdf(fname: str, ctx: dict, jid: str) -> bytes | None:
             html_src = f.read()
     filled = fill_template(html_src, ctx)
     try:
-        from playwright.sync_api import sync_playwright
-        with sync_playwright() as p:
-            browser = p.chromium.launch()
-            page = browser.new_page()
-            page.set_content(filled, wait_until='networkidle')
-            pdf = page.pdf(print_background=True)
-            browser.close()
-        return pdf
-    except Exception:
-        try:
-            from weasyprint import HTML as WP
-            return WP(string=filled, base_url=HTML_DOCS_DIR).write_pdf()
-        except Exception as e:
-            job_log(jid, f"PDF render failed ({fname}): {e}", error=True)
-            return None
+        from weasyprint import HTML as WP
+        return WP(string=filled, base_url=HTML_DOCS_DIR).write_pdf()
+    except Exception as e:
+        job_log(jid, f"PDF render failed ({fname}): {e}", error=True)
+        return None
 
 
 def run_job(jid: str, fd: dict, agency: dict, submission: dict):
@@ -185,7 +175,7 @@ def run_job(jid: str, fd: dict, agency: dict, submission: dict):
             if pdf_results[idx]:
                 log(f"Done: {oname}.pdf")
 
-        with ThreadPoolExecutor(max_workers=5) as ex:
+        with ThreadPoolExecutor(max_workers=2) as ex:
             futs = {ex.submit(render_one, i, fn, on): i for i, (fn, on) in enumerate(doc_files)}
             for ft in as_completed(futs): ft.result()
 
