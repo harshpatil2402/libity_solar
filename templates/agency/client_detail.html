@@ -153,7 +153,7 @@
       <i class="ph ph-clock"></i> Link sent — waiting for client to submit.
     </div>
     <div style="font-size:.8rem;margin-bottom:8px;color:var(--text-muted);">Share this link with client via WhatsApp / copy:</div>
-    <div style="background:var(--bg-subtle);border:1.5px solid var(--accent);border-radius:var(--radius);padding:11px 14px;font-family:monospace;font-size:.78rem;color:var(--accent);word-break:break-all;margin-bottom:10px;user-select:all;" id="clientLink">{{ base_url }}/collect/{{ submission.token }}</div>
+    <div style="background:var(--bg-subtle);border:1.5px solid var(--accent);border-radius:var(--radius);padding:11px 14px;font-family:monospace;font-size:.78rem;color:var(--accent);word-break:break-all;margin-bottom:10px;user-select:all;" id="clientLink">{{ base_url }}/{{ agency.username }}/client/{{ submission.token }}</div>
     <div class="d-flex gap-2 flex-wrap">
       <button onclick="copyLink()" class="btn btn-outline-primary btn-sm"><i class="ph ph-copy me-1"></i> Copy Link</button>
       <button onclick="openWhatsApp()" class="btn btn-success btn-sm"><i class="ph ph-whatsapp-logo me-1"></i> Open in WhatsApp Web</button>
