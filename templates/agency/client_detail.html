@@ -204,9 +204,26 @@
     {% for job in doc_jobs %}
     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg-subtle);border-radius:var(--radius);border:1px solid var(--border);margin-bottom:6px;font-size:.8rem;">
       <span><span class="mono">{{ job.id[:8] }}…</span> &nbsp;·&nbsp; {{ job.created_at[:10] if job.created_at else '—' }}</span>
-      <span class="chip {% if job.status=='done' %}chip-green{% elif job.status=='error' %}chip-red{% else %}chip-amber{% endif %}">{{ job.status }}</span>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <span class="chip {% if job.status=='done' %}chip-green{% elif job.status=='error' %}chip-red{% else %}chip-amber{% endif %}">{{ job.status }}</span>
+        {% if job.status == 'done' %}
+        <button class="btn btn-outline-primary btn-sm" onclick="tryDownload('{{ job.id }}')" title="Download ZIP">
+          <i class="ph ph-download-simple"></i> Download
+        </button>
+        {% endif %}
+      </div>
     </div>
     {% endfor %}
+    <div id="regen-area" style="display:none;margin-top:12px;padding:14px 16px;background:var(--warn-pale);border:1px solid var(--warn);border-radius:var(--radius);">
+      <div style="font-size:.82rem;color:var(--warn);margin-bottom:10px;display:flex;align-items:center;gap:7px;">
+        <i class="ph ph-warning"></i> <strong>File expired</strong> — server restarted, ZIP is no longer in memory.
+      </div>
+      <button id="regen-btn" class="btn btn-primary btn-sm" onclick="startRegen()">
+        <i class="ph ph-arrows-clockwise me-1"></i> Regenerate &amp; Download
+      </button>
+      <div id="regen-status" style="font-size:.78rem;color:var(--text-muted);margin-top:8px;"></div>
+      <div id="regen-logs" style="max-height:130px;overflow-y:auto;margin-top:6px;font-family:monospace;font-size:.72rem;line-height:1.6;"></div>
+    </div>
     {% endif %}
   </div>
 </div>
@@ -363,18 +380,112 @@ document.addEventListener('DOMContentLoaded', function () {
   else                                                            openSection('p5', 'a5');
 });
 
-function copyLink() {
-  var el = document.getElementById('clientLink');
-  if (el) {
-    navigator.clipboard.writeText(el.textContent.trim()).then(function () { alert('Link copied!'); });
+function _clipCopy(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text)
+      .then(function() { alert('Link copied!'); })
+      .catch(function() { _clipFallback(text); });
+  } else {
+    _clipFallback(text);
   }
 }
-
+function _clipFallback(text) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;top:0;left:0;width:2px;height:2px;opacity:0;';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  try { document.execCommand('copy'); alert('Link copied!'); }
+  catch(e) { alert('Copy failed — please select and copy the link manually.'); }
+  document.body.removeChild(ta);
+}
+function copyLink() {
+  var el = document.getElementById('clientLink');
+  if (el) _clipCopy(el.textContent.trim());
+}
 function copyGpsLink() {
   var el = document.getElementById('gpsLink');
-  if (el) {
-    navigator.clipboard.writeText(el.textContent.trim()).then(function () { alert('GPS link copied!'); });
-  }
+  if (el) _clipCopy(el.textContent.trim());
+}
+
+function tryDownload(jid) {
+  fetch('/agency/api/job/' + jid + '/download')
+    .then(function(r) {
+      if (r.ok) {
+        return r.blob().then(function(b) {
+          var cd = r.headers.get('Content-Disposition') || '';
+          var fn = (cd.match(/filename="?([^";\n]+)"?/) || [])[1] || 'documents.zip';
+          var url = URL.createObjectURL(b);
+          var a = document.createElement('a');
+          a.href = url; a.download = fn;
+          document.body.appendChild(a); a.click();
+          document.body.removeChild(a);
+          setTimeout(function() { URL.revokeObjectURL(url); }, 3000);
+        });
+      } else {
+        document.getElementById('regen-area').style.display = 'block';
+        document.getElementById('p3').style.display = 'block';
+        document.getElementById('a3').className = 'ph ph-caret-up ms-auto';
+      }
+    })
+    .catch(function() {
+      document.getElementById('regen-area').style.display = 'block';
+    });
+}
+
+var _regenJid = null;
+function startRegen() {
+  var btn = document.getElementById('regen-btn');
+  var st  = document.getElementById('regen-status');
+  var lg  = document.getElementById('regen-logs');
+  btn.disabled = true; lg.innerHTML = ''; st.textContent = 'Starting…';
+  fetch('/agency/api/generate', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      client_id:       {{ client.id | tojson }},
+      consumer_name:   {{ client.name | tojson }},
+      consumer_number: {{ (client.consumer_number or '') | tojson }},
+    })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.job_id) { _regenJid = d.job_id; _pollRegen(0); }
+    else { st.textContent = 'Failed to start job.'; btn.disabled = false; }
+  })
+  .catch(function() { st.textContent = 'Network error — try again.'; btn.disabled = false; });
+}
+function _pollRegen(since) {
+  var st = document.getElementById('regen-status');
+  var lg = document.getElementById('regen-logs');
+  fetch('/agency/api/job/' + _regenJid + '/status?since=' + since)
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      (d.logs || []).forEach(function(l) {
+        var row = document.createElement('div');
+        row.textContent = (l.error ? '⚠ ' : '→ ') + l.msg;
+        row.style.color = l.error ? 'var(--danger)' : 'var(--text-muted)';
+        lg.appendChild(row); lg.scrollTop = lg.scrollHeight;
+      });
+      if (d.status === 'done') {
+        st.textContent = 'Done! Starting download…';
+        fetch(d.download_url).then(function(r) { return r.blob(); }).then(function(b) {
+          var url = URL.createObjectURL(b);
+          var a = document.createElement('a');
+          a.href = url; a.download = d.zip_name || 'documents.zip';
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          setTimeout(function() { URL.revokeObjectURL(url); }, 3000);
+          st.innerHTML = '<span style="color:#2D7A4A;font-weight:600;">✓ Download started!</span>';
+        });
+      } else if (d.status === 'error') {
+        st.textContent = 'Generation failed. Use the Generate Docs button above.';
+        document.getElementById('regen-btn').disabled = false;
+      } else {
+        st.textContent = 'Generating… (' + (d.total || 0) + ' steps done)';
+        setTimeout(function() { _pollRegen(d.total || 0); }, 1500);
+      }
+    })
+    .catch(function() { setTimeout(function() { _pollRegen(since); }, 2000); });
 }
 
 function openWhatsApp() {
