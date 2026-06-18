@@ -4,7 +4,7 @@ Multi-agency solar installation management platform with Supabase backend.
 
 ---
 
-## Architecture
+## Architecture below
 
 ```
 Superadmin (you)
