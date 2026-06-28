@@ -1,4 +1,4 @@
-from flask import Flask, redirect, url_for
+from flask import Flask, redirect
 from config import Config
 from datetime import timedelta
 
@@ -18,7 +18,7 @@ def create_app():
 
     @app.route('/')
     def index():
-        return redirect(url_for('agency.login'))
+        return redirect('/agency/login')
 
     # Preload doc templates
     from utils.doc_engine import preload_templates
