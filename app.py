@@ -1,10 +1,15 @@
 from flask import Flask, redirect
 from config import Config
 from datetime import timedelta
+from werkzeug.middleware.proxy_fix import ProxyFix # <--- Added this line
 
 
 def create_app():
     app = Flask(__name__)
+    
+    # Tells Flask to trust Cloudflare's HTTPS headers so redirects work perfectly
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1) # <--- Added this line
+    
     app.config.from_object(Config)
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 
@@ -16,6 +21,7 @@ def create_app():
     app.register_blueprint(agency_bp)
     app.register_blueprint(public_bp)
 
+    # Use a relative redirect to prevent Flask from appending internal container ports
     @app.route('/')
     def index():
         return redirect('/agency/login')
