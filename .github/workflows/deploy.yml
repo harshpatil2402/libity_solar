@@ -29,8 +29,8 @@ jobs:
             docker stop solar_saas || true
             docker rm solar_saas || true
             
-            # Start the newly updated website
-            docker run -d -p 80:5000 --name solar_saas --restart unless-stopped libity_solar_app
+            # Start the newly updated website with the environment variables injected
+            docker run -d -p 80:5000 --name solar_saas --env-file .env --restart unless-stopped libity_solar_app
             
-            # Clean up old unused images
+            # Clean up old unused images to save disk space
             docker system prune -af
