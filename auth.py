@@ -1,5 +1,5 @@
 from functools import wraps
-from flask import session, redirect, url_for, flash
+from flask import session, redirect, url_for, flash, request, jsonify
 
 HARDCODED_AGENCY = {
     'id': 'hardcoded-admin',
@@ -24,12 +24,20 @@ def superadmin_required(f):
         return f(*args, **kwargs)
     return decorated
 
+def _is_api_request():
+    return request.path.startswith('/agency/api/')
+
+def _unauthorized(message):
+    if _is_api_request():
+        return jsonify({'error': message, 'session_expired': True}), 401
+    return redirect(url_for('agency.login'))
+
 def agency_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         aid = session.get('agency_id')
         if not aid:
-            return redirect(url_for('agency.login'))
+            return _unauthorized('Session expired. Please log in again.')
 
         # Hardcoded fallback
         if aid == 'hardcoded-admin':
@@ -41,10 +49,12 @@ def agency_required(f):
         print(f"[auth] agency_required: id={aid} -> {agency is not None}")
         if not agency:
             session.clear()
-            return redirect(url_for('agency.login'))
+            return _unauthorized('Session expired. Please log in again.')
         if not agency.get('is_active'):
-            flash('Account deactivated. Contact support.', 'danger')
             session.clear()
+            if _is_api_request():
+                return jsonify({'error': 'Account deactivated. Contact support.', 'session_expired': True}), 401
+            flash('Account deactivated. Contact support.', 'danger')
             return redirect(url_for('agency.login'))
         # Expired agencies are allowed through — dashboard shows soft-lock overlay
         kwargs['agency'] = agency

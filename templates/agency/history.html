@@ -43,11 +43,21 @@
         </td>
         <td style="font-size:.75rem;color:var(--text-muted);">{{ job.created_at[:16].replace('T',' ') if job.created_at else '—' }}</td>
         <td>
-          {% if job.status=='done' %}
-          <a href="{{ url_for('agency.download_history', jid=job.id) }}" class="btn btn-outline-primary btn-sm">
-            <i class="ph ph-download-simple me-1"></i> Download
-          </a>
-          {% else %}<span style="font-size:.76rem;color:var(--text-muted);">N/A</span>{% endif %}
+          <div class="d-flex gap-2">
+            {% if job.status=='done' %}
+            <a href="{{ url_for('agency.download_history', jid=job.id) }}" class="btn btn-outline-primary btn-sm" title="Download">
+              <i class="ph ph-download-simple"></i>
+            </a>
+            {% else %}<span style="font-size:.76rem;color:var(--text-muted);width:32px;display:inline-block;text-align:center;">—</span>{% endif %}
+            {% if job.client_id %}
+            <a href="{{ url_for('agency.generate_page', client_id=job.client_id) }}" class="btn btn-outline-secondary btn-sm" title="Edit and Regenerate">
+              <i class="ph ph-pencil-simple"></i>
+            </a>
+            {% endif %}
+            <form method="POST" action="{{ url_for('agency.delete_job', jid=job.id) }}" onsubmit="return confirm('Delete this job record?')">
+              <button class="btn btn-outline-danger btn-sm" title="Delete"><i class="ph ph-trash"></i></button>
+            </form>
+          </div>
         </td>
       </tr>
       {% endfor %}

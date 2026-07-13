@@ -25,15 +25,34 @@
   #cropImg{display:block;max-width:100%;max-height:100%;}
   .doc-chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:18px;}
   .doc-chip{display:flex;align-items:center;gap:5px;padding:5px 11px;background:var(--bg-subtle);border:1px solid var(--border);border-radius:20px;font-size:.74rem;font-weight:500;color:var(--text-muted);}
-  #logBody{min-height:160px;max-height:320px;overflow-y:auto;padding:12px 16px;background:#0d1117;font-family:'SF Mono','Fira Code',monospace;font-size:.76rem;}
-  .ll{display:block;padding:1px 0;} .ll.ok{color:#3fb950;} .ll.err{color:#f85149;} .ll.inf{color:#8b949e;}
-  .dot-loader{display:flex;gap:5px;align-items:center;}
-  .dot-loader span{width:6px;height:6px;border-radius:50%;background:#4C8CE4;animation:db 1.2s infinite both;}
-  .dot-loader span:nth-child(2){animation-delay:.2s;} .dot-loader span:nth-child(3){animation-delay:.4s;}
-  @keyframes db{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
   .sub-label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin:12px 0 8px;}
   .fetched-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;background:var(--success-pale);color:#2D7A4A;border:1px solid #A8DCA0;border-radius:20px;font-size:.7rem;font-weight:600;}
   @media(max-width:768px){.gen-layout{grid-template-columns:1fr;} .side-nav{display:none;}}
+
+  /* ── Generation modal ── */
+  .gen-progress-body{padding:30px 30px 8px;text-align:center;}
+  .solar-anim{width:78px;height:78px;margin:0 auto 14px;position:relative;display:flex;align-items:center;justify-content:center;}
+  .solar-glow{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle,rgba(245,166,35,.35) 0%,rgba(245,166,35,0) 70%);animation:glowPulse 1.8s ease-in-out infinite;}
+  .solar-sun{font-size:44px;color:#F5A623;position:relative;animation:sunSpin 5s linear infinite;}
+  @keyframes glowPulse{0%,100%{transform:scale(.85);opacity:.6;}50%{transform:scale(1.15);opacity:1;}}
+  @keyframes sunSpin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+  .gen-status-title{font-weight:700;font-size:1.02rem;color:var(--text);margin-bottom:3px;}
+  .gen-status-sub{font-size:.78rem;color:var(--text-muted);margin-bottom:18px;}
+  .gen-progress-track{height:7px;border-radius:6px;background:var(--bg-subtle);overflow:hidden;margin-bottom:20px;border:1px solid var(--border);}
+  .gen-progress-fill{height:100%;background:linear-gradient(90deg,#F5A623,#F76B1C);border-radius:6px;transition:width .5s ease;}
+  .doc-check-list{display:flex;flex-direction:column;gap:7px;text-align:left;margin-bottom:6px;}
+  .doc-check-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:10px;background:var(--bg-subtle);border:1px solid var(--border);font-size:.82rem;color:var(--text-muted);transition:all .2s ease;}
+  .doc-check-item.active{border-color:var(--accent);background:var(--accent-pale);color:var(--text);font-weight:600;}
+  .doc-check-item.done{border-color:#A8DCA0;background:var(--success-pale);color:#2D7A4A;}
+  .doc-check-item.error{border-color:#f2a8a8;background:#FDECEA;color:#B03030;}
+  .doc-check-ico{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;background:var(--bg-card);border:1px solid var(--border);}
+  .doc-check-item.active .doc-check-ico{border-color:var(--accent);color:var(--accent);}
+  .doc-check-item.done .doc-check-ico{border-color:#A8DCA0;color:#2D7A4A;background:#fff;}
+  .doc-check-item.error .doc-check-ico{border-color:#f2a8a8;color:#B03030;background:#fff;}
+  .gen-log-details{margin-top:16px;text-align:left;}
+  .gen-log-details summary{font-size:.72rem;color:var(--text-muted);cursor:pointer;user-select:none;}
+  #logBody{min-height:120px;max-height:240px;overflow-y:auto;padding:12px 16px;background:#0d1117;font-family:'SF Mono','Fira Code',monospace;font-size:.74rem;margin-top:8px;border-radius:var(--radius);}
+  .ll{display:block;padding:1px 0;} .ll.ok{color:#3fb950;} .ll.err{color:#f85149;} .ll.inf{color:#8b949e;}
 </style>
 {% endblock %}
 {% block content %}
@@ -104,7 +123,7 @@
         <div class="col-md-4"><label class="form-label">Sanction Number <span class="required">*</span></label><input type="text" name="sanction_number" class="form-control" required></div>
         <div class="col-md-4"><label class="form-label">Sanctioned Capacity (kW) <span class="required">*</span></label><input type="number" step="0.01" name="sanction_capacity_kw" class="form-control" required value="{{ client.kw_capacity if client else '' }}"></div>
         <div class="col-md-4"><label class="form-label">Installed Capacity (kW) <span class="required">*</span></label><input type="number" step="0.01" name="system_capacity_kw" class="form-control" required value="{{ client.kw_capacity if client else '' }}"></div>
-        <div class="col-md-4"><label class="form-label">Solar Price (Rs./kWh) <span class="required">*</span></label><input type="text" name="agreement_solar_price" class="form-control" required placeholder="e.g. 3.50"></div>
+        <div class="col-md-4"><label class="form-label">Total Amount (₹) <span class="required">*</span></label><input type="text" name="agreement_solar_price" class="form-control" required placeholder="e.g. 150000" value="{{ '{:.0f}'.format(client.final_amount) if client and client.final_amount else '' }}"></div>
       </div>
     </div>
 
@@ -170,19 +189,19 @@
 
       <div class="row g-3">
         <div class="col-md-6">
-          <div class="upload-zone" onclick="document.getElementById('sig_file').click()">
+          <div class="upload-zone" onclick="pickPhoto('sig')">
             <label class="form-label mb-1">{% if submission %}Override Signature{% else %}Consumer Signature <span class="required">*</span>{% endif %}</label>
-            <input type="file" id="sig_file" class="crop-input" data-target="sig" data-ratio="3" accept="image/*" style="display:none;">
-            <div style="font-size:.78rem;color:var(--text-muted);display:flex;align-items:center;gap:5px;"><i class="ph ph-upload-simple"></i> Click to upload &amp; crop (3:1)</div>
+            <input type="file" id="sig_file" class="crop-input" data-target="sig" data-ratio="NaN" accept="image/*" style="display:none;">
+            <div style="font-size:.78rem;color:var(--text-muted);display:flex;align-items:center;gap:5px;"><i class="ph ph-upload-simple"></i> Click to upload &amp; crop</div>
             <img id="sig-preview" class="preview-img" style="display:none;" alt="">
             <div id="sig-status" style="font-size:.7rem;color:var(--text-muted);margin-top:5px;">{% if submission %}Using submission image{% else %}Not uploaded{% endif %}</div>
           </div>
         </div>
         <div class="col-md-6">
-          <div class="upload-zone" onclick="document.getElementById('aadhar_file').click()">
+          <div class="upload-zone" onclick="pickPhoto('aadhar')">
             <label class="form-label mb-1">{% if submission %}Override Aadhaar{% else %}Consumer Aadhaar <span class="required">*</span>{% endif %}</label>
-            <input type="file" id="aadhar_file" class="crop-input" data-target="aadhar" data-ratio="1.5714" accept="image/*" style="display:none;">
-            <div style="font-size:.78rem;color:var(--text-muted);display:flex;align-items:center;gap:5px;"><i class="ph ph-upload-simple"></i> Click to upload &amp; crop (11:7)</div>
+            <input type="file" id="aadhar_file" class="crop-input" data-target="aadhar" data-ratio="NaN" accept="image/*" style="display:none;">
+            <div style="font-size:.78rem;color:var(--text-muted);display:flex;align-items:center;gap:5px;"><i class="ph ph-upload-simple"></i> Click to upload &amp; crop</div>
             <img id="aadhar-preview" class="preview-img" style="display:none;" alt="">
             <div id="aadhar-status" style="font-size:.7rem;color:var(--text-muted);margin-top:5px;">{% if submission %}Using submission image{% else %}Not uploaded{% endif %}</div>
           </div>
@@ -215,15 +234,48 @@
   </div>
 </div>
 
-<!-- Log Modal -->
+<!-- Generation Modal -->
 <div class="modal fade" id="logModal" data-bs-backdrop="static" data-bs-keyboard="false">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content border-0 overflow-hidden" style="background:var(--bg-card);">
-      <div style="background:#0d1117;padding:16px 20px;display:flex;align-items:center;gap:12px;">
-        <div id="mSpinner" class="dot-loader"><span></span><span></span><span></span></div>
-        <span id="mTitle" style="font-weight:700;font-size:.95rem;color:#e6edf3;">Generating Documents …</span>
+      <div class="gen-progress-body">
+        <div class="solar-anim" id="solarAnim">
+          <div class="solar-glow"></div>
+          <i class="ph ph-sun solar-sun"></i>
+        </div>
+        <div class="gen-status-title" id="mTitle">Warming up the panels…</div>
+        <div class="gen-status-sub" id="mSub">Preparing your document set</div>
+
+        <div class="gen-progress-track"><div class="gen-progress-fill" id="progFill" style="width:3%;"></div></div>
+
+        <div class="doc-check-list" id="docCheckList">
+          <div class="doc-check-item" data-oname="1_Commissioning_Report" data-fname="commissioning_report.html">
+            <span class="doc-check-ico"><i class="ph ph-clock"></i></span>
+            <span>Commissioning Report</span>
+          </div>
+          <div class="doc-check-item" data-oname="2_Meter_Testing" data-fname="meter_testing.html">
+            <span class="doc-check-ico"><i class="ph ph-clock"></i></span>
+            <span>Meter Testing</span>
+          </div>
+          <div class="doc-check-item" data-oname="3_Model_Agreement" data-fname="model_agreement.html">
+            <span class="doc-check-ico"><i class="ph ph-clock"></i></span>
+            <span>Model Agreement</span>
+          </div>
+          <div class="doc-check-item" data-oname="4_Net_Metering" data-fname="net_metering_agreement.html">
+            <span class="doc-check-ico"><i class="ph ph-clock"></i></span>
+            <span>Net Metering</span>
+          </div>
+          <div class="doc-check-item" data-oname="5_Work_Completion" data-fname="work_completion_report.html">
+            <span class="doc-check-ico"><i class="ph ph-clock"></i></span>
+            <span>Work Completion</span>
+          </div>
+        </div>
+
+        <details class="gen-log-details">
+          <summary>Show technical log</summary>
+          <div id="logBody"></div>
+        </details>
       </div>
-      <div id="logBody"></div>
       <div style="padding:12px 18px;border-top:1px solid var(--border);background:var(--bg-subtle);display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         <a href="#" id="dlLink" class="btn btn-success px-5" style="display:none;"><i class="ph ph-download-simple me-1"></i> Download ZIP</a>
         <button type="button" class="btn btn-outline-secondary btn-sm" id="closeBtn" data-bs-dismiss="modal" style="display:none;">Close</button>
@@ -272,7 +324,7 @@ document.addEventListener('DOMContentLoaded',function(){
   cme.addEventListener('hidden.bs.modal',function(){if(cropper){cropper.destroy();cropper=null;}});
   document.getElementById('cropBtn').addEventListener('click',function(){
     if(!cropper) return;
-    const b64=cropper.getCroppedCanvas({maxWidth:1400,imageSmoothingQuality:'high'}).toDataURL('image/jpeg',.92);
+    const b64=cropper.getCroppedCanvas({maxWidth:1000,maxHeight:1000,imageSmoothingQuality:'high'}).toDataURL('image/jpeg',.82);
     const hf=document.getElementById(cropTarget+'_b64');if(hf)hf.value=b64;
     const pr=document.getElementById(cropTarget+'-preview');if(pr){pr.src=b64;pr.style.display='block';}
     const st=document.getElementById(cropTarget+'-status');if(st)st.innerHTML='<i class="ph ph-check-circle" style="color:var(--accent);"></i> Image ready';
@@ -282,9 +334,40 @@ document.addEventListener('DOMContentLoaded',function(){
   // Generation
   const form=document.getElementById('genForm'),genBtn=document.getElementById('genBtn');
   const logBody=document.getElementById('logBody'),dlLink=document.getElementById('dlLink');
-  const closeBtn=document.getElementById('closeBtn'),mSpinner=document.getElementById('mSpinner'),mTitle=document.getElementById('mTitle');
+  const closeBtn=document.getElementById('closeBtn'),solarAnim=document.getElementById('solarAnim');
+  const mTitle=document.getElementById('mTitle'),mSub=document.getElementById('mSub'),progFill=document.getElementById('progFill');
+  const docItems=Array.from(document.querySelectorAll('.doc-check-item'));
   const logModal=new bootstrap.Modal(document.getElementById('logModal'));
-  let pollInt=null,logIdx=0;
+  let pollInt=null,logIdx=0,doneCount=0;
+
+  function setProgress(pct){progFill.style.width=Math.max(3,Math.min(100,pct))+'%';}
+
+  function findDocItem(msg){
+    return docItems.find(it=>msg.includes(it.dataset.oname)||msg.includes(it.dataset.fname));
+  }
+  function setItemState(it,state){
+    it.classList.remove('active','done','error');
+    it.classList.add(state);
+    const box=it.querySelector('.doc-check-ico');
+    if(state==='active'){box.innerHTML='<span class="spinner-border spinner-border-sm" style="width:11px;height:11px;border-width:2px;"></span>';}
+    else{box.innerHTML = state==='done' ? '<i class="ph ph-check"></i>' : state==='error' ? '<i class="ph ph-x"></i>' : '<i class="ph ph-clock"></i>';}
+  }
+
+  function updateProgressUI(msg,err){
+    const it=findDocItem(msg);
+    if(it){
+      if(err){setItemState(it,'error');}
+      else if(/^Rendering /.test(msg)){setItemState(it,'active');mSub.textContent='Rendering '+it.querySelector('span:last-child').textContent+' …';}
+      else if(/^Done:/.test(msg)){setItemState(it,'done');doneCount++;setProgress(15+doneCount*15);}
+      return;
+    }
+    if(err){mTitle.textContent='Something went wrong';mTitle.style.color='#f85149';return;}
+    if(/^Loading assets/.test(msg)){mSub.textContent='Loading assets …';setProgress(5);}
+    else if(/^Processing client images/.test(msg)){mSub.textContent='Processing client images …';setProgress(10);}
+    else if(/^Generating PDFs/.test(msg)){mSub.textContent='Rendering your 5 documents …';setProgress(15);}
+    else if(/^Building ZIP/.test(msg)){mSub.textContent='Packing everything into a ZIP …';setProgress(92);}
+    else if(/^ZIP ready/.test(msg)){mSub.textContent='All done!';setProgress(100);}
+  }
 
   function aLog(msg,err){
     const s=document.createElement('span');
@@ -292,8 +375,22 @@ document.addEventListener('DOMContentLoaded',function(){
     s.textContent='> '+msg;
     logBody.appendChild(s);logBody.appendChild(document.createTextNode('\n'));
     logBody.scrollTop=logBody.scrollHeight;
+    updateProgressUI(msg,err);
   }
   function stopPoll(){if(pollInt){clearInterval(pollInt);pollInt=null;}}
+
+  function resetGenUI(){
+    logBody.innerHTML='';doneCount=0;setProgress(3);
+    solarAnim.style.filter='';mTitle.style.color='';
+    mTitle.textContent='Warming up the panels…';mSub.textContent='Preparing your document set';
+    docItems.forEach(it=>setItemState(it,'pending'));
+  }
+
+  function haltUI(failMsg){
+    solarAnim.style.filter='grayscale(1)';
+    mTitle.textContent=failMsg;mTitle.style.color='#f85149';
+    closeBtn.style.display='inline-block';genBtn.disabled=false;genBtn.innerHTML='<i class="ph ph-file-arrow-up me-1"></i> Generate PDFs';
+  }
 
   async function triggerDownload(url,fname){
     try{const r=await fetch(url,{credentials:'same-origin'});if(!r.ok)throw new Error('HTTP '+r.status);
@@ -302,7 +399,7 @@ document.addEventListener('DOMContentLoaded',function(){
   }
 
   function showDone(url,zname){
-    stopPoll();mSpinner.style.display='none';mTitle.textContent='Complete — documents ready.';mTitle.style.color='#3fb950';
+    stopPoll();setProgress(100);mTitle.textContent='Complete — documents ready!';mTitle.style.color='#2D7A4A';mSub.textContent='Your ZIP is downloading now.';
     dlLink.href='#';dlLink.onclick=e=>{e.preventDefault();triggerDownload(url,zname);};
     dlLink.style.display='inline-flex';closeBtn.style.display='inline-block';
     genBtn.disabled=false;genBtn.innerHTML='<i class="ph ph-file-arrow-up me-1"></i> Generate PDFs';
@@ -314,11 +411,12 @@ document.addEventListener('DOMContentLoaded',function(){
     pollInt=setInterval(async()=>{
       try{
         const r=await fetch('/agency/api/job/'+jid+'/status?since='+logIdx);
+        if(r.status===401){stopPoll();aLog('Your session has expired. Please log in again.',true);haltUI('Session expired');return;}
         if(!r.ok) return;
         const d=await r.json();
         d.logs.forEach(e=>aLog(e.msg,e.error));logIdx+=d.logs.length;
         if(d.status==='done') showDone(d.download_url,d.zip_name);
-        if(d.status==='error'){stopPoll();mSpinner.style.display='none';mTitle.textContent='Generation failed.';mTitle.style.color='#f85149';closeBtn.style.display='inline-block';genBtn.disabled=false;genBtn.innerHTML='<i class="ph ph-file-arrow-up me-1"></i> Generate PDFs';}
+        if(d.status==='error'){stopPoll();haltUI('Generation failed');}
       }catch(e){}
     },900);
   }
@@ -328,8 +426,7 @@ document.addEventListener('DOMContentLoaded',function(){
     if(!form.checkValidity()){form.reportValidity();return;}
     const sigVal=document.getElementById('sig_b64').value;
     if(!sigVal){alert('Signature is required. Upload in Documents section.');return;}
-    logBody.innerHTML='';dlLink.style.display='none';closeBtn.style.display='none';
-    mSpinner.style.display='';mTitle.style.color='#e6edf3';mTitle.textContent='Generating Documents …';
+    resetGenUI();dlLink.style.display='none';closeBtn.style.display='none';
     genBtn.disabled=true;genBtn.innerHTML='<span class="spinner-border spinner-border-sm me-2"></span>Generating...';
     logModal.show();
     const data=Object.fromEntries(new FormData(form).entries());
@@ -338,11 +435,20 @@ document.addEventListener('DOMContentLoaded',function(){
     aLog('Submitting job ...');
     try{
       const res=await fetch('/agency/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+      if(res.status===401){aLog('Your session has expired. Please log in again.',true);haltUI('Session expired');setTimeout(()=>{window.location.href='/agency/login';},1800);return;}
       const json=await res.json();
       if(json.job_id){aLog('Job started: '+json.job_id.slice(0,8)+' …');startPoll(json.job_id);}
       else throw new Error(json.error||'No job_id');
-    }catch(err){aLog(err.message,true);genBtn.disabled=false;genBtn.innerHTML='<i class="ph ph-file-arrow-up me-1"></i> Generate PDFs';}
+    }catch(err){aLog(err.message,true);haltUI('Generation failed');}
   });
 });
+</script>
+
+<script>
+// Device shows its own camera/gallery chooser for a plain file input.
+function pickPhoto(target){
+  var inp = document.getElementById(target+'_file');
+  if(inp){ inp.value=''; inp.click(); }
+}
 </script>
 {% endblock %}

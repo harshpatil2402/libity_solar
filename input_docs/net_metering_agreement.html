@@ -24,10 +24,10 @@
       min-height: 279mm;
       background: #fff;
       margin: 0 auto 32px auto;
-      padding: 14mm 20mm 13mm 20mm;
+      padding: 13mm 20mm 13mm 20mm;
       box-shadow: 0 6px 24px rgba(0,0,0,0.22);
     }
-    .stamp-gap { height: 130mm; display: block; }
+    .stamp-gap { display: none; }
   }
 
   @media print {
@@ -35,14 +35,18 @@
     .page {
       width: 216mm;
       min-height: 279mm;
-      padding: 0 20mm 13mm 20mm;
+      padding: 0;
     }
-    .stamp-gap { height: 130mm; display: block; }
+    .stamp-gap { display: none; }
   }
 
-  @page { size: Letter portrait; margin: 0; }
+  @page { size: Letter portrait; margin: 13mm 20mm 13mm 20mm; }
+  @page :nth(1) { margin-top: 150mm; }
+  @page :nth(2) { margin-top: 150mm; }
+  @page :nth(3) { margin-top: 150mm; }
+  @page :nth(4) { margin-top: 150mm; }
 
-  .stamp-gap { height: 130mm; display: block; }
+  .stamp-gap { display: none; }
 
   /* ── Placeholder style — bold italic ── */
   .ph {
@@ -129,15 +133,8 @@
     text-align: justify;
   }
 
-  /* ── Signature / Witness page ── */
   .sig-witness-page {
     page-break-before: always;
-    padding-top: 14mm;
-  }
-  @media print {
-    .sig-witness-page {
-      padding: 130mm 20mm 13mm 20mm; /* 13cm stamp gap + side margins */
-    }
   }
   .party-sig-row {
     display: flex;

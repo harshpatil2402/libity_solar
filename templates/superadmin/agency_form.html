@@ -96,7 +96,7 @@
           <div class="upload-zone" onclick="document.getElementById('stamp_file').click()">
             <label class="form-label mb-1">Agency Stamp / Seal</label>
             <p style="font-size:.72rem;color:var(--text-muted);margin:0 0 8px;">Round or square stamp. Used in signature section.</p>
-            <input type="file" id="stamp_file" class="crop-input" data-target="stamp" data-ratio="1" accept="image/*" style="display:none;">
+            <input type="file" id="stamp_file" class="crop-input" data-target="stamp" data-ratio="NaN" accept="image/*" style="display:none;">
             <div style="display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--text-muted);"><i class="ph ph-upload-simple"></i> Click to upload</div>
             {% if agency and agency.stamp_b64 %}
             <img src="{{ agency.stamp_b64 }}" class="preview-img" id="stamp-preview">

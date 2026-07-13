@@ -60,6 +60,13 @@ def collect(agency_username, token):
             'status':       'submitted',
             'submitted_at': datetime.now(timezone.utc).isoformat(),
         }
+        # Save consumer email if provided
+        if 'consumer_email' in data:
+            updates['consumer_email'] = data.get('consumer_email', '')
+        # Save other_photos_json if provided
+        if 'other_photos_json' in data:
+            updates['other_photos_json'] = data.get('other_photos_json', '[]')
+
         # Only overwrite image fields if new data was provided; keeps existing if empty
         for field in ['aadhar_b64', 'pan_b64', 'cheque_b64', 'signature_b64']:
             val = data.get(field, '')

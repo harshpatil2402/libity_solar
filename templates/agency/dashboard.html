@@ -94,12 +94,15 @@
       </div>
       <div class="kcards">
         {% for c in kanban[status] %}
-        <a href="{{ url_for('agency.client_detail', client_id=c.id) }}" class="kcard {% if status == 'Info Collected' %}new-notif{% endif %}">
-          <div class="kc-name">{{ c.name }}</div>
-          <div class="kc-meta"><i class="ph ph-phone" style="font-size:10px;"></i> {{ c.mobile }}</div>
-          {% if c.final_amount %}<div style="font-size:.7rem;color:var(--accent);margin-top:4px;font-weight:600;">₹{{ '{:,.0f}'.format(c.final_amount) }}</div>{% endif %}
-          {% if c.kw_capacity %}<div style="font-size:.7rem;color:var(--text-muted);">⚡ {{ c.kw_capacity }} kW</div>{% endif %}
-        </a>
+        <div style="position:relative;">
+          <a href="{{ url_for('agency.client_detail', client_id=c.id) }}" class="kcard {% if status == 'Info Collected' %}new-notif{% endif %}">
+            <div class="kc-name" style="padding-right:20px;">{{ c.name }}</div>
+            <div class="kc-meta"><i class="ph ph-phone" style="font-size:10px;"></i> {{ c.mobile }}</div>
+            {% if c.final_amount %}<div style="font-size:.7rem;color:var(--accent);margin-top:4px;font-weight:600;">₹{{ '{:,.0f}'.format(c.final_amount) }}</div>{% endif %}
+            {% if c.kw_capacity %}<div style="font-size:.7rem;color:var(--text-muted);">⚡ {{ c.kw_capacity }} kW</div>{% endif %}
+          </a>
+          <a href="{{ url_for('agency.edit_client', client_id=c.id) }}" style="position:absolute;top:6px;right:6px;padding:4px;color:var(--text-muted);background:transparent;" title="Edit Client"><i class="ph ph-pencil-simple"></i></a>
+        </div>
         {% else %}
         <div style="font-size:.68rem;color:var(--text-light);padding:7px;text-align:center;">Empty</div>
         {% endfor %}
@@ -123,7 +126,12 @@
           <td>{% if c.final_amount %}₹{{ '{:,.0f}'.format(c.final_amount) }}{% else %}—{% endif %}</td>
           <td><span class="chip" style="background:{{ status_colors.get(c.status,'#406093') }}18;color:{{ status_colors.get(c.status,'#406093') }};">{{ c.status }}</span></td>
           <td style="font-size:.72rem;color:var(--text-muted);">{{ c.updated_at[:10] if c.updated_at else '—' }}</td>
-          <td><a href="{{ url_for('agency.client_detail', client_id=c.id) }}" class="btn btn-outline-primary btn-sm">View →</a></td>
+          <td>
+            <div class="d-flex gap-2">
+              <a href="{{ url_for('agency.client_detail', client_id=c.id) }}" class="btn btn-outline-primary btn-sm">View →</a>
+              <a href="{{ url_for('agency.edit_client', client_id=c.id) }}" class="btn btn-outline-secondary btn-sm" title="Edit"><i class="ph ph-pencil-simple"></i></a>
+            </div>
+          </td>
         </tr>
         {% else %}
         <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:36px;">No clients yet. <a href="{{ url_for('agency.new_client') }}">Add one →</a></td></tr>

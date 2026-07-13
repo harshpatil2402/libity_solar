@@ -80,6 +80,17 @@
       1. Aadhaar card photo &nbsp;·&nbsp; 2. PAN card photo &nbsp;·&nbsp; 3. Cheque photo &nbsp;·&nbsp; 4. Your signature
     </div>
 
+    <!-- Email -->
+    <div class="sec">
+      <div class="sec-hd">
+        <div class="sec-ico" style="background:#FCE8E8;color:#B02020;"><i class="ph ph-envelope"></i></div>
+        <div><div class="sec-title">Email Address <span class="required">*</span></div><div class="sec-sub">Where we should send updates</div></div>
+      </div>
+      <div class="sec-body">
+        <input type="email" id="consumer_email" class="form-control" placeholder="your@email.com" value="{{ sub.consumer_email or '' }}" style="font-size: 0.9rem; padding: 10px; border-radius: 8px;" required>
+      </div>
+    </div>
+
     <!-- Aadhaar -->
     <div class="sec">
       <div class="sec-hd">
@@ -87,8 +98,8 @@
         <div><div class="sec-title">Aadhaar Card <span class="required">*</span></div><div class="sec-sub">Clear photo of front side</div></div>
       </div>
       <div class="sec-body">
-        <input type="file" id="aadhar_file" class="crop-input" data-target="aadhar" data-ratio="1.5714" accept="image/*">
-        <div class="upload-btn" id="aadhar-btn" onclick="document.getElementById('aadhar_file').click()">
+        <input type="file" id="aadhar_file" class="crop-input" data-target="aadhar" data-ratio="NaN" accept="image/*" style="display:none;">
+        <div class="upload-btn" id="aadhar-btn" onclick="pickPhoto('aadhar')">
           <i class="ph ph-camera" style="font-size:18px;"></i> <span>Take photo or choose from gallery</span>
         </div>
         <img id="aadhar-preview" class="preview-thumb" alt="">
@@ -103,8 +114,8 @@
         <div><div class="sec-title">PAN Card</div><div class="sec-sub">Clear photo of PAN card</div></div>
       </div>
       <div class="sec-body">
-        <input type="file" id="pan_file" class="crop-input" data-target="pan" data-ratio="1.7778" accept="image/*">
-        <div class="upload-btn" id="pan-btn" onclick="document.getElementById('pan_file').click()">
+        <input type="file" id="pan_file" class="crop-input" data-target="pan" data-ratio="NaN" accept="image/*" style="display:none;">
+        <div class="upload-btn" id="pan-btn" onclick="pickPhoto('pan')">
           <i class="ph ph-camera" style="font-size:18px;"></i> <span>Take photo or choose from gallery</span>
         </div>
         <img id="pan-preview" class="preview-thumb" alt="">
@@ -119,12 +130,31 @@
         <div><div class="sec-title">Cheque Photo</div><div class="sec-sub">Photo of any bank cheque</div></div>
       </div>
       <div class="sec-body">
-        <input type="file" id="cheque_file" class="crop-input" data-target="cheque" data-ratio="2" accept="image/*">
-        <div class="upload-btn" id="cheque-btn" onclick="document.getElementById('cheque_file').click()">
+        <input type="file" id="cheque_file" class="crop-input" data-target="cheque" data-ratio="NaN" accept="image/*" style="display:none;">
+        <div class="upload-btn" id="cheque-btn" onclick="pickPhoto('cheque')">
           <i class="ph ph-camera" style="font-size:18px;"></i> <span>Take photo or choose from gallery</span>
         </div>
         <img id="cheque-preview" class="preview-thumb" alt="">
         <div class="status-txt" id="cheque-status">Not uploaded</div>
+      </div>
+    </div>
+
+    <!-- Other Photos -->
+    <div class="sec">
+      <div class="sec-hd">
+        <div class="sec-ico" style="background:#E8F0FE;color:#2050B0;"><i class="ph ph-images"></i></div>
+        <div>
+          <div class="sec-title">Other Photos (Optional)</div>
+          <div class="sec-sub">Any other documents requested by agency</div>
+        </div>
+      </div>
+      <div class="sec-body" id="other-photos-container" style="padding-bottom:0;">
+        <!-- Dynamic list of other photos will go here -->
+      </div>
+      <div class="sec-body" style="border-top: 1px solid var(--border); background: var(--bg);">
+        <button class="btn btn-outline-secondary w-100" style="border-style: dashed; padding: 10px; font-size: 0.85rem;" onclick="addOtherPhotoSlot()">
+          <i class="ph ph-plus me-1"></i> Add Another Photo
+        </button>
       </div>
     </div>
 
@@ -141,8 +171,8 @@
         <div style="padding:10px 12px;background:var(--accent-pale);border:1px solid var(--accent);border-radius:8px;font-size:.78rem;color:var(--accent);margin-bottom:12px;line-height:1.5;">
           Sign your name on a blank piece of paper, take a clear photo, and upload it below.
         </div>
-        <input type="file" id="sig_file" class="crop-input" data-target="sig" data-ratio="3" accept="image/*">
-        <div class="upload-btn" id="sig-btn" onclick="document.getElementById('sig_file').click()">
+        <input type="file" id="sig_file" class="crop-input" data-target="sig" data-ratio="NaN" accept="image/*" style="display:none;">
+        <div class="upload-btn" id="sig-btn" onclick="pickPhoto('sig')">
           <i class="ph ph-camera" style="font-size:18px;"></i> <span>Take photo or choose from gallery</span>
         </div>
         <img id="sig-preview" class="preview-thumb" alt="">
@@ -173,6 +203,7 @@
 
 </div>
 
+
 <!-- Crop Modal -->
 <div class="modal fade" id="cropModal" data-bs-backdrop="static">
   <div class="modal-dialog modal-fullscreen-sm-down modal-lg modal-dialog-centered">
@@ -199,6 +230,9 @@ const b64Store={
   cheque:{{ (sub.cheque_b64 if sub and sub.cheque_b64 else '') | tojson }},
   sig:   {{ (sub.signature_b64 if sub and sub.signature_b64 else '') | tojson }},
 };
+let otherPhotosRaw = {{ sub.other_photos_json | default('[]', true) | safe }};
+let otherPhotos = Array.isArray(otherPhotosRaw) ? otherPhotosRaw : (typeof otherPhotosRaw === 'string' ? JSON.parse(otherPhotosRaw || '[]') : []);
+
 // Show existing previews
 document.addEventListener('DOMContentLoaded',function(){
   [['aadhar','aadhar'],['pan','pan'],['cheque','cheque'],['sig','sig']].forEach(function(p){
@@ -209,24 +243,83 @@ document.addEventListener('DOMContentLoaded',function(){
       var btn=document.getElementById(n+'-btn');if(btn)btn.classList.add('has-img');
     }
   });
+  renderOtherPhotos();
 });
+
+function renderOtherPhotos() {
+  const container = document.getElementById('other-photos-container');
+  container.innerHTML = '';
+  otherPhotos.forEach((photo, index) => {
+    const slotId = 'other_' + index;
+    const slotHtml = `
+      <div style="border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; margin-bottom: 12px; background: #fff;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+          <input type="text" class="form-control form-control-sm" placeholder="Title (e.g. Electricity Bill)" value="${photo.title || ''}" onchange="otherPhotos[${index}].title = this.value" style="font-weight: 600; font-size: 0.85rem; max-width: 85%;">
+          <button class="btn btn-sm text-danger p-1" onclick="removeOtherPhoto(${index})"><i class="ph ph-trash" style="font-size:16px;"></i></button>
+        </div>
+        <input type="file" id="${slotId}_file" class="crop-input" data-target="${slotId}" data-ratio="NaN" accept="image/*" style="display:none;">
+        <div class="upload-btn ${photo.b64 ? 'has-img' : ''}" id="${slotId}-btn" onclick="pickPhoto('${slotId}')">
+          <i class="ph ph-camera" style="font-size:18px;"></i> <span>Take photo or choose from gallery</span>
+        </div>
+        <img id="${slotId}-preview" class="preview-thumb" alt="" src="${photo.b64 || ''}" style="display: ${photo.b64 ? 'block' : 'none'};">
+        <div class="status-txt" id="${slotId}-status">${photo.b64 ? '<span style="color:#2D7A4A;"><i class="ph ph-check-circle"></i> Image ready</span>' : 'Not uploaded'}</div>
+      </div>
+    `;
+    container.insertAdjacentHTML('beforeend', slotHtml);
+  });
+  attachCropListeners();
+}
+
+function addOtherPhotoSlot() {
+  otherPhotos.push({ title: '', b64: '' });
+  renderOtherPhotos();
+}
+
+function removeOtherPhoto(index) {
+  if(confirm("Remove this photo?")) {
+    otherPhotos.splice(index, 1);
+    renderOtherPhotos();
+  }
+}
+
+
+// Device shows its own camera/gallery chooser for a plain file input.
+function pickPhoto(target) {
+  const inp = document.getElementById(target + '_file');
+  if (inp) {
+    inp.value = '';
+    inp.click();
+  }
+}
 
 // Crop logic
 let cropper=null,cropTarget='',cropRatio=1;
 const cme=document.getElementById('cropModal'),getCM=()=>bootstrap.Modal.getOrCreateInstance(cme),ci=document.getElementById('cropImg');
-document.querySelectorAll('.crop-input').forEach(function(inp){
-  inp.addEventListener('change',function(){
-    if(!this.files||!this.files[0]) return;
-    cropTarget=this.dataset.target;cropRatio=parseFloat(this.dataset.ratio)||NaN;
-    const r=new FileReader();r.onload=e=>{ci.src=e.target.result;getCM().show();};r.readAsDataURL(this.files[0]);
+
+function attachCropListeners() {
+  document.querySelectorAll('.crop-input:not(.bound)').forEach(function(inp){
+    inp.classList.add('bound');
+    inp.addEventListener('change',function(){
+      if(!this.files||!this.files[0]) return;
+      cropTarget=this.dataset.target;cropRatio=parseFloat(this.dataset.ratio)||NaN;
+      const r=new FileReader();r.onload=e=>{ci.src=e.target.result;getCM().show();};r.readAsDataURL(this.files[0]);
+    });
   });
-});
+}
+attachCropListeners();
 cme.addEventListener('shown.bs.modal',function(){if(cropper){cropper.destroy();cropper=null;}cropper=new Cropper(ci,{aspectRatio:cropRatio,viewMode:1,autoCropArea:.95,guides:true});});
 cme.addEventListener('hidden.bs.modal',function(){if(cropper){cropper.destroy();cropper=null;}});
 document.getElementById('cropBtn').addEventListener('click',function(){
   if(!cropper) return;
-  const b64=cropper.getCroppedCanvas({maxWidth:1400,imageSmoothingQuality:'high'}).toDataURL('image/jpeg',.9);
-  b64Store[cropTarget]=b64;
+  const b64=cropper.getCroppedCanvas({maxWidth:1000,maxHeight:1000,imageSmoothingQuality:'high'}).toDataURL('image/jpeg',.82);
+  
+  if (cropTarget.startsWith('other_')) {
+    const idx = parseInt(cropTarget.split('_')[1]);
+    otherPhotos[idx].b64 = b64;
+  } else {
+    b64Store[cropTarget]=b64;
+  }
+  
   const pr=document.getElementById(cropTarget+'-preview');if(pr){pr.src=b64;pr.style.display='block';}
   const st=document.getElementById(cropTarget+'-status');if(st)st.innerHTML='<span style="color:#2D7A4A;"><i class="ph ph-check-circle"></i> Image ready</span>';
   const btn=document.getElementById(cropTarget+'-btn');if(btn)btn.classList.add('has-img');
@@ -235,6 +328,9 @@ document.getElementById('cropBtn').addEventListener('click',function(){
 });
 
 async function submitForm(){
+  const emailInput = document.getElementById('consumer_email');
+  const email = emailInput ? emailInput.value.trim() : '';
+  if(!email){alert('Please enter your email address.');return;}
   if(!b64Store.aadhar){alert('Please upload your Aadhaar card.');return;}
   if(!b64Store.sig){alert('Please upload your signature photo.');return;}
   const btn=document.getElementById('submitBtn');
@@ -242,7 +338,15 @@ async function submitForm(){
   document.getElementById('submit-status').textContent='Uploading your documents securely…';
   try{
     const res=await fetch(window.location.pathname,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({aadhar_b64:b64Store.aadhar,pan_b64:b64Store.pan,cheque_b64:b64Store.cheque,signature_b64:b64Store.sig})});
+      body:JSON.stringify({
+        consumer_email: email,
+        aadhar_b64:b64Store.aadhar,
+        pan_b64:b64Store.pan,
+        cheque_b64:b64Store.cheque,
+        signature_b64:b64Store.sig,
+        other_photos_json: JSON.stringify(otherPhotos)
+      })
+    });
     const d=await res.json();
     if(d.success){document.getElementById('mainForm').style.display='none';document.getElementById('successBox').style.display='block';}
     else{document.getElementById('submit-status').textContent='Error: '+(d.error||'Please retry.');btn.disabled=false;btn.innerHTML='<i class="ph ph-paper-plane-tilt"></i> Submit Documents';}

@@ -57,6 +57,7 @@ create table if not exists client_submissions (
   consumer_number text,
   consumer_address text,
   consumer_email  text,
+  other_photos_json text,
   consumer_aadhar_num text,
   city            text,
   -- Images as base64

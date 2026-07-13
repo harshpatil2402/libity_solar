@@ -27,21 +27,22 @@
       padding: 16mm 20mm 16mm 20mm;
       box-shadow: 0 6px 24px rgba(0,0,0,0.22);
     }
-    .stamp-gap { height: 130mm; display: block; }
+    .stamp-gap { display: none; }
   }
 
   @media print {
     body { background: #fff; }
     .page {
-      width: 210mm;
+      width: auto;
       min-height: 297mm;
-      padding: 0 20mm 16mm 20mm;
+      padding: 0;
     }
-    /* stamp-gap on page 1 provides the 13cm top space */
-    .stamp-gap { height: 130mm; display: block; }
+    .stamp-gap { display: none; }
   }
 
-  @page { size: A4 portrait; margin: 0; }
+  @page { size: A4 portrait; margin: 16mm 20mm 16mm 20mm; }
+  @page :nth(1) { margin-top: 160mm; }
+  @page :nth(2) { margin-top: 160mm; }
 
   /* ── Placeholder style ── */
   .ph {
@@ -110,12 +111,6 @@
   /* ── Execution / Witness block ── */
   .witness-page {
     page-break-before: always;
-    padding-top: 16mm; /* screen default */
-  }
-  @media print {
-    .witness-page {
-      padding: 130mm 20mm 16mm 20mm; /* 13cm stamp gap + side margins */
-    }
   }
   .execution-block { margin-top: 26px; }
   .party-sig-row {

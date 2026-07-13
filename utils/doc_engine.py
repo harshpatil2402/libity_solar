@@ -60,7 +60,10 @@ def file_to_data_uri(path: str, mime: str) -> str:
 def fill_template(html: str, ctx: dict) -> str:
     for k, v in ctx.items():
         if v is not None:
-            html = html.replace('{{' + k + '}}', str(v))
+            if 'logo' not in k and 'image' not in k and 'html' not in k:
+                html = html.replace('{{' + k + '}}', f'<b>{str(v)}</b>')
+            else:
+                html = html.replace('{{' + k + '}}', str(v))
     html = re.sub(r'\{\{[^}]+\}\}', '', html)
     html = html.replace(' class="highlight"', '').replace(" class='highlight'", '')
     return html

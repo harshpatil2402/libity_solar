@@ -201,13 +201,21 @@ def send_collection_link(agency, client_id):
     token   = make_token()
     expires = (datetime.now(timezone.utc) + timedelta(hours=72)).isoformat()
 
-    insert_row('client_submissions', {
-        'client_id':  client_id,
-        'agency_id':  agency['id'],
-        'token':      token,
-        'status':     'pending',
-        'expires_at': expires,
-    })
+    existing = fetch_one('client_submissions', {'client_id': client_id})
+    if existing:
+        update_row('client_submissions', {'id': existing['id']}, {
+            'token':      token,
+            'status':     'pending',
+            'expires_at': expires,
+        })
+    else:
+        insert_row('client_submissions', {
+            'client_id':  client_id,
+            'agency_id':  agency['id'],
+            'token':      token,
+            'status':     'pending',
+            'expires_at': expires,
+        })
 
     update_row('clients', {'id': client_id}, {
         'status':     'Link Sent',
@@ -267,11 +275,35 @@ def update_status(agency, client_id):
 
 @agency_bp.route('/clients/<client_id>/delete', methods=['POST'])
 @agency_required
-@feature_required('client_mgmt')
 def delete_client(agency, client_id):
-    delete_row('clients', {'id': client_id, 'agency_id': agency['id']})
-    flash('Client deleted.', 'success')
+    c = fetch_one('clients', {'id': client_id, 'agency_id': agency['id']})
+    if c:
+        delete_row('clients', {'id': client_id})
+        flash(f"Client {c['name']} deleted.", 'success')
     return redirect(url_for('agency.dashboard'))
+
+@agency_bp.route('/clients/<client_id>/edit', methods=['GET', 'POST'])
+@agency_required
+def edit_client(agency, client_id):
+    c = fetch_one('clients', {'id': client_id, 'agency_id': agency['id']})
+    if not c:
+        return redirect(url_for('agency.dashboard'))
+    
+    if request.method == 'POST':
+        update_row('clients', {'id': client_id}, {
+            'name':            request.form.get('name', '').strip(),
+            'mobile':          request.form.get('mobile', '').strip(),
+            'address':         request.form.get('address', '').strip(),
+            'city':            request.form.get('city', '').strip(),
+            'consumer_number': request.form.get('consumer_number', '').strip(),
+            'kw_capacity':     request.form.get('kw_capacity') or None,
+            'final_amount':    request.form.get('final_amount') or None,
+            'updated_at':      datetime.now(timezone.utc).isoformat(),
+        })
+        flash("Client details updated.", 'success')
+        return redirect(url_for('agency.client_detail', client_id=client_id))
+    
+    return render_template('agency/edit_client.html', agency=agency, client=c)
 
 
 # ── Generate Docs page ────────────────────────────────────────────
@@ -382,6 +414,7 @@ def export_csv(agency):
     import csv, io
     clients = _get_clients(agency['id'])
     output = io.StringIO()
+    output.write('\ufeff') # UTF-8 BOM for Excel
     w = csv.writer(output)
     w.writerow(['Name', 'Mobile', 'Consumer No.', 'City', 'kW', 'Amount (₹)', 'Status', 'Address', 'Created'])
     for c in clients:
@@ -418,6 +451,15 @@ def download_history(agency, jid):
                          as_attachment=True, download_name=job.get('zip_name', 'documents.zip'))
     flash('File no longer available. Please regenerate.', 'warning')
     return redirect(url_for('agency.generate_page'))
+
+@agency_bp.route('/history/<jid>/delete', methods=['POST'])
+@agency_required
+def delete_job(agency, jid):
+    j = fetch_one('doc_jobs', {'id': jid, 'agency_id': agency['id']})
+    if j:
+        delete_row('doc_jobs', {'id': jid})
+        flash("Document job deleted from history.", "success")
+    return redirect(url_for('agency.history'))
 
 
 # ── Manual Upload (agency uploads on client's behalf) ─────────────

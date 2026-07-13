@@ -26,6 +26,21 @@
   .img-thumb{width:100%;height:88px;object-fit:contain;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg-subtle);padding:4px;}
   .img-label{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);margin-bottom:5px;}
   .toggle-hd{cursor:pointer;} .toggle-hd:hover{background:var(--bg-subtle);}
+
+    /* Camera / Gallery choice sheet */
+    .choice-sheet-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9000;display:none;align-items:flex-end;justify-content:center;}
+    .choice-sheet-overlay.open{display:flex;}
+    .choice-sheet{background:var(--bg-card,#fff);border-radius:18px 18px 0 0;padding:14px 16px 32px;width:100%;max-width:480px;box-shadow:0 -4px 24px rgba(0,0,0,.18);animation:slideUp .22s ease;}
+    @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+    .choice-pill{width:36px;height:4px;background:var(--border,#C8D6E8);border-radius:4px;margin:0 auto 18px;}
+    .choice-title{font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted,#5A6A7A);text-align:center;margin-bottom:14px;}
+    .choice-btn{width:100%;border:1.5px solid var(--border,#C8D6E8);background:var(--bg,#FAF8F0);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:13px;cursor:pointer;margin-bottom:9px;transition:border-color .13s;}
+    .choice-btn:hover,.choice-btn:active{border-color:var(--accent,#406093);background:var(--accent-pale,#E8F0F8);}
+    .choice-btn-ico{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+    .choice-btn-label{font-weight:600;font-size:.88rem;color:var(--text,#1A2A3A);}
+    .choice-btn-sub{font-size:.72rem;color:var(--text-muted,#5A6A7A);margin-top:1px;}
+    .choice-cancel{width:100%;border:none;background:none;color:var(--text-muted,#5A6A7A);font-size:.84rem;font-weight:600;padding:10px;cursor:pointer;margin-top:2px;}
+
 </style>
 {% endblock %}
 {% block content %}
@@ -52,6 +67,9 @@
     <a href="{{ url_for('agency.generate_page', client_id=client.id) }}" class="btn btn-primary btn-sm">
       <i class="ph ph-file-arrow-up me-1"></i> Generate Docs
     </a>
+    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#editClientModal">
+      <i class="ph ph-pencil-simple me-1"></i> Edit
+    </button>
     <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#manualUploadModal">
       <i class="ph ph-upload-simple me-1"></i> Manual Upload
     </button>
@@ -59,6 +77,33 @@
           onsubmit="return confirm('Delete {{ client.name }}?')">
       <button class="btn btn-outline-danger btn-sm"><i class="ph ph-trash"></i></button>
     </form>
+  </div>
+</div>
+
+<!-- Edit Client Modal -->
+<div class="modal fade" id="editClientModal">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('agency.edit_client', client_id=client.id) }}">
+        <div class="modal-header">
+          <h5 class="modal-title">Edit Client Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body row g-3">
+          <div class="col-md-6"><label class="form-label">Name</label><input type="text" name="name" class="form-control" value="{{ client.name }}" required></div>
+          <div class="col-md-6"><label class="form-label">Mobile</label><input type="text" name="mobile" class="form-control" value="{{ client.mobile }}" required></div>
+          <div class="col-md-12"><label class="form-label">Address</label><input type="text" name="address" class="form-control" value="{{ client.address or '' }}"></div>
+          <div class="col-md-6"><label class="form-label">City</label><input type="text" name="city" class="form-control" value="{{ client.city or '' }}"></div>
+          <div class="col-md-6"><label class="form-label">Consumer No.</label><input type="text" name="consumer_number" class="form-control" value="{{ client.consumer_number or '' }}"></div>
+          <div class="col-md-6"><label class="form-label">kW Capacity</label><input type="number" step="0.01" name="kw_capacity" class="form-control" value="{{ client.kw_capacity or '' }}"></div>
+          <div class="col-md-6"><label class="form-label">Final Amount</label><input type="number" name="final_amount" class="form-control" value="{{ client.final_amount or '' }}"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
   </div>
 </div>
 
@@ -110,6 +155,12 @@
         <div style="font-size:.88rem;">{{ val }}</div>
       </div>
       {% endfor %}
+      {% if submission and submission.consumer_email %}
+      <div class="col-md-4">
+        <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);font-weight:600;margin-bottom:3px;">Email</div>
+        <div style="font-size:.88rem;">{{ submission.consumer_email }}</div>
+      </div>
+      {% endif %}
       {% if client.address %}
       <div class="col-12">
         <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);font-weight:600;margin-bottom:3px;">Address</div>
@@ -136,18 +187,84 @@
     <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--success-pale);border:1px solid #A8DCA0;border-radius:var(--radius);margin-bottom:16px;font-size:.82rem;color:#2D7A4A;">
       <i class="ph ph-check-circle"></i> Client submitted on {{ submission.submitted_at[:10] if submission.submitted_at else 'unknown date' }}
     </div>
-    <div class="row g-3">
+    <div class="row g-3" id="photos-container">
       {% for label, key in [('Aadhaar Card','aadhar_b64'),('PAN Card','pan_b64'),('Cheque Photo','cheque_b64'),('Signature','signature_b64')] %}
       <div class="col-md-3">
         <div class="img-label">{{ label }}</div>
         {% if submission[key] %}
-        <img src="{{ submission[key] }}" class="img-thumb" onclick="window.open('{{ submission[key] }}','_blank')" style="cursor:zoom-in;" title="Click to enlarge">
+        <div style="position:relative;display:inline-block;width:100%;">
+          <img src="{{ submission[key] }}" class="img-thumb download-img" data-filename="{{ label | lower | replace(' ', '_') }}.jpg" onclick="window.open('{{ submission[key] }}','_blank')" style="cursor:zoom-in;" title="Click to enlarge">
+          <a href="{{ submission[key] }}" download="{{ client.name | lower | replace(' ', '_') }}_{{ label | lower | replace(' ', '_') }}.jpg" class="btn btn-outline-secondary btn-sm" style="width:100%;font-size:0.7rem;margin-top:4px;"><i class="ph ph-download-simple"></i> Download</a>
+        </div>
         {% else %}
         <div style="width:100%;height:88px;border-radius:var(--radius);border:1px dashed var(--border);background:var(--bg-subtle);display:flex;align-items:center;justify-content:center;font-size:.72rem;color:var(--text-light);">Not uploaded</div>
         {% endif %}
       </div>
       {% endfor %}
     </div>
+    
+    <div class="mt-3 d-flex gap-2">
+      <button class="btn btn-outline-primary btn-sm" onclick="downloadAllPhotos()"><i class="ph ph-download me-1"></i> Download All</button>
+      <form method="POST" action="{{ url_for('agency.send_collection_link', client_id=client.id) }}" style="display:inline-block;">
+        <button class="btn btn-outline-secondary btn-sm"><i class="ph ph-paper-plane-tilt me-1"></i> Resend Link to Client</button>
+      </form>
+    </div>
+
+    <h6 class="mt-4 mb-3" style="font-size:.85rem;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.5px;">Other Photos (Uploaded by Client)</h6>
+    <div class="row g-3" id="other-photos-container">
+    {% if not submission.other_photos_json %}
+      <div class="col-12"><div style="font-size:.75rem;color:var(--text-light);">No other photos uploaded.</div></div>
+    {% endif %}
+    </div>
+
+    {% if submission.other_photos_json %}
+    <script>
+      document.addEventListener("DOMContentLoaded", function() {
+        try {
+          var rawStr = {{ submission.other_photos_json | tojson | safe }};
+          var otherPhotos = typeof rawStr === 'string' ? JSON.parse(rawStr) : rawStr;
+          if (Array.isArray(otherPhotos)) {
+            var container = document.getElementById('other-photos-container');
+            otherPhotos.forEach(function(p, i) {
+              if (p.b64) {
+                var title = p.title || ('Other Photo ' + (i+1));
+                var safeTitle = title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                var div = document.createElement('div');
+                div.className = 'col-md-3';
+                var clientName = "{{ client.name }}".replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                div.innerHTML = '<div class="img-label">' + title + '</div>' + 
+                                '<div style="position:relative;display:inline-block;width:100%;">' +
+                                '<img src="' + p.b64 + '" class="img-thumb download-img" data-filename="' + safeTitle + '.jpg" style="cursor:zoom-in;" title="Click to enlarge" onclick="window.open(this.src,\'_blank\')">' +
+                                '<a href="' + p.b64 + '" download="' + clientName + '_' + safeTitle + '.jpg" class="btn btn-outline-secondary btn-sm" style="width:100%;font-size:0.7rem;margin-top:4px;"><i class="ph ph-download-simple"></i> Download</a>' +
+                                '</div>';
+                container.appendChild(div);
+              }
+            });
+          }
+        } catch(e) { console.error('Failed to parse other photos', e); }
+      });
+    </script>
+    {% endif %}
+
+    <script>
+      function downloadAllPhotos() {
+        var imgs = document.querySelectorAll('.download-img');
+        if(imgs.length === 0) { alert('No photos to download.'); return; }
+        
+        var clientName = "{{ client.name }}".replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        
+        imgs.forEach(function(img, index) {
+          setTimeout(function() {
+            var a = document.createElement('a');
+            a.href = img.src;
+            a.download = clientName + "_" + img.getAttribute('data-filename');
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          }, index * 200); // slight delay to prevent browser blocking multiple downloads
+        });
+      }
+    </script>
     {% elif submission and submission.status == 'pending' %}
     <div style="padding:12px 14px;background:var(--warn-pale);border:1px solid var(--warn);border-radius:var(--radius);margin-bottom:14px;font-size:.82rem;color:var(--warn);display:flex;align-items:center;gap:8px;">
       <i class="ph ph-clock"></i> Link sent — waiting for client to submit.
@@ -311,24 +428,54 @@
           <div class="row g-3">
             <div class="col-md-6">
               <label style="font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);display:block;margin-bottom:5px;">Aadhaar Card</label>
-              <input type="file" name="aadhar" class="form-control form-control-sm" accept="image/*">
+              <div style="display:flex;gap:6px;">
+                <input type="file" id="aadhar_gal" name="aadhar" class="form-control form-control-sm" accept="image/*" style="display:none;" onchange="previewField(this,'aadhar')">
+                <input type="file" id="aadhar_cam" accept="image/*" capture="environment" style="display:none;" onchange="copyToGal(this,'aadhar')">
+                <button type="button" class="btn btn-outline-secondary btn-sm" style="white-space:nowrap;font-size:.78rem;" onclick="openChoice('aadhar')"><i class="ph ph-camera me-1"></i>Choose / Capture</button>
+                <span id="aadhar_label" style="font-size:.75rem;color:#5A6A7A;align-self:center;">No file</span>
+              </div>
+              <img id="aadhar_preview" style="max-height:60px;border-radius:6px;border:1px solid #C8D6E8;margin-top:5px;display:none;" alt="">
             </div>
             <div class="col-md-6">
               <label style="font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);display:block;margin-bottom:5px;">PAN Card</label>
-              <input type="file" name="pan" class="form-control form-control-sm" accept="image/*">
+              <div style="display:flex;gap:6px;">
+                <input type="file" id="pan_gal" name="pan" class="form-control form-control-sm" accept="image/*" style="display:none;" onchange="previewField(this,'pan')">
+                <input type="file" id="pan_cam" accept="image/*" capture="environment" style="display:none;" onchange="copyToGal(this,'pan')">
+                <button type="button" class="btn btn-outline-secondary btn-sm" style="white-space:nowrap;font-size:.78rem;" onclick="openChoice('pan')"><i class="ph ph-camera me-1"></i>Choose / Capture</button>
+                <span id="pan_label" style="font-size:.75rem;color:#5A6A7A;align-self:center;">No file</span>
+              </div>
+              <img id="pan_preview" style="max-height:60px;border-radius:6px;border:1px solid #C8D6E8;margin-top:5px;display:none;" alt="">
             </div>
             <div class="col-md-6">
               <label style="font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);display:block;margin-bottom:5px;">Cheque Photo</label>
-              <input type="file" name="cheque" class="form-control form-control-sm" accept="image/*">
+              <div style="display:flex;gap:6px;">
+                <input type="file" id="cheque_gal" name="cheque" class="form-control form-control-sm" accept="image/*" style="display:none;" onchange="previewField(this,'cheque')">
+                <input type="file" id="cheque_cam" accept="image/*" capture="environment" style="display:none;" onchange="copyToGal(this,'cheque')">
+                <button type="button" class="btn btn-outline-secondary btn-sm" style="white-space:nowrap;font-size:.78rem;" onclick="openChoice('cheque')"><i class="ph ph-camera me-1"></i>Choose / Capture</button>
+                <span id="cheque_label" style="font-size:.75rem;color:#5A6A7A;align-self:center;">No file</span>
+              </div>
+              <img id="cheque_preview" style="max-height:60px;border-radius:6px;border:1px solid #C8D6E8;margin-top:5px;display:none;" alt="">
             </div>
             <div class="col-md-6">
               <label style="font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);display:block;margin-bottom:5px;">Signature</label>
-              <input type="file" name="signature" class="form-control form-control-sm" accept="image/*">
+              <div style="display:flex;gap:6px;">
+                <input type="file" id="signature_gal" name="signature" class="form-control form-control-sm" accept="image/*" style="display:none;" onchange="previewField(this,'signature')">
+                <input type="file" id="signature_cam" accept="image/*" capture="environment" style="display:none;" onchange="copyToGal(this,'signature')">
+                <button type="button" class="btn btn-outline-secondary btn-sm" style="white-space:nowrap;font-size:.78rem;" onclick="openChoice('signature')"><i class="ph ph-camera me-1"></i>Choose / Capture</button>
+                <span id="signature_label" style="font-size:.75rem;color:#5A6A7A;align-self:center;">No file</span>
+              </div>
+              <img id="signature_preview" style="max-height:60px;border-radius:6px;border:1px solid #C8D6E8;margin-top:5px;display:none;" alt="">
             </div>
             <div class="col-12">
               <hr style="border-color:var(--border);margin:6px 0 14px;">
               <label style="font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);display:block;margin-bottom:5px;">GPS / Installation Photo</label>
-              <input type="file" name="gps_photo" class="form-control form-control-sm" accept="image/*">
+              <div style="display:flex;gap:6px;">
+                <input type="file" id="gps_photo_gal" name="gps_photo" class="form-control form-control-sm" accept="image/*" style="display:none;" onchange="previewField(this,'gps_photo')">
+                <input type="file" id="gps_photo_cam" accept="image/*" capture="environment" style="display:none;" onchange="copyToGal(this,'gps_photo')">
+                <button type="button" class="btn btn-outline-secondary btn-sm" style="white-space:nowrap;font-size:.78rem;" onclick="openChoice('gps_photo')"><i class="ph ph-camera me-1"></i>Choose / Capture</button>
+                <span id="gps_photo_label" style="font-size:.75rem;color:#5A6A7A;align-self:center;">No file</span>
+              </div>
+              <img id="gps_photo_preview" style="max-height:60px;border-radius:6px;border:1px solid #C8D6E8;margin-top:5px;display:none;" alt="">
             </div>
           </div>
           <div style="margin-top:16px;padding:10px 13px;background:var(--accent-pale);border-radius:var(--radius);font-size:.76rem;color:var(--accent);line-height:1.6;">
@@ -517,6 +664,74 @@ function openWhatsApp() {
 
   var msg = english + marathi;
   window.open('https://web.whatsapp.com/send?phone=91' + mobile + '&text=' + encodeURIComponent(msg), '_blank');
+}
+</script>
+
+<!-- Camera / Gallery Choice Sheet -->
+<div class="choice-sheet-overlay" id="choiceOverlay" onclick="if(event.target===this)closeChoice()">
+  <div class="choice-sheet">
+    <div class="choice-pill"></div>
+    <div class="choice-title">Choose an option</div>
+    <button class="choice-btn" onclick="pickCamera()">
+      <div class="choice-btn-ico" style="background:#E8F0FE;color:#2050B0;"><i class="ph ph-camera"></i></div>
+      <div><div class="choice-btn-label">Take Photo</div><div class="choice-btn-sub">Open camera and capture live</div></div>
+    </button>
+    <button class="choice-btn" onclick="pickGallery()">
+      <div class="choice-btn-ico" style="background:#E8F5EC;color:#2D7A4A;"><i class="ph ph-images"></i></div>
+      <div><div class="choice-btn-label">Choose from Gallery</div><div class="choice-btn-sub">Select an existing photo</div></div>
+    </button>
+    <button class="choice-cancel" onclick="closeChoice()">Cancel</button>
+  </div>
+</div>
+
+<script>
+// ── Camera / Gallery choice ───────────────────────────────────────
+var _choiceTarget = null;
+function openChoice(target){
+  _choiceTarget = target;
+  document.getElementById('choiceOverlay').classList.add('open');
+}
+function closeChoice(){
+  document.getElementById('choiceOverlay').classList.remove('open');
+  _choiceTarget = null;
+}
+function pickCamera(){
+  closeChoice();
+  if(!_choiceTarget) return;
+  // Try _cam suffix first, then fall back to _file with capture added
+  var inp = document.getElementById(_choiceTarget+'_cam')
+         || document.getElementById(_choiceTarget+'_file_cam');
+  if(!inp){
+    inp = document.getElementById(_choiceTarget+'_file');
+    if(inp) inp.setAttribute('capture','environment');
+  }
+  if(inp){ inp.value=''; inp.click(); }
+}
+function pickGallery(){
+  closeChoice();
+  if(!_choiceTarget) return;
+  var inp = document.getElementById(_choiceTarget+'_gal')
+         || document.getElementById(_choiceTarget+'_file');
+  if(inp){ inp.removeAttribute('capture'); inp.value=''; inp.click(); }
+}
+window.addEventListener('popstate', function(){ closeChoice(); });
+
+function previewField(inp, field){
+  if(!inp.files||!inp.files[0]) return;
+  document.getElementById(field+'_label').textContent = inp.files[0].name;
+  var r=new FileReader();
+  r.onload=function(e){
+    var pr=document.getElementById(field+'_preview');
+    if(pr){pr.src=e.target.result;pr.style.display='block';}
+  };
+  r.readAsDataURL(inp.files[0]);
+}
+function copyToGal(camInp, field){
+  if(!camInp.files||!camInp.files[0]) return;
+  var dt=new DataTransfer();
+  dt.items.add(camInp.files[0]);
+  var gal=document.getElementById(field+'_gal');
+  if(gal){ gal.files=dt.files; previewField(gal,field); }
 }
 </script>
 {% endblock %}
